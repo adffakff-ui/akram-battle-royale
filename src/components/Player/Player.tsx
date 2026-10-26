@@ -7,7 +7,8 @@ interface PlayerProps {
   isShooting: boolean;
   cameraRotation: { x: number; y: number };
   onPositionChange?: (x: number, z: number) => void;
-  onHitEnemy?: (enemyName: string, damage: number) => void;
+  onHitEnemy?: (enemyName: string, damage: number, hitPos?: [number, number, number]) => void;
+  onSpawnParticles?: (pos: [number, number, number], color: string) => void;
 }
 
 export const Player = forwardRef<THREE.Group, PlayerProps>(({ 
@@ -15,11 +16,11 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   isShooting, 
   cameraRotation, 
   onPositionChange,
-  onHitEnemy
+  onHitEnemy,
+  onSpawnParticles
 }, ref) => {
   const meshRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Mesh>(null);
-  const tracerRef = useRef<THREE.Line>(null);
   const playerVelocity = useRef(new THREE.Vector3(0, 0, 0));
   const isGrounded = useRef(true);
   const lastFireTime = useRef(0);
@@ -74,6 +75,7 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   const _raycaster = useMemo(() => new THREE.Raycaster(), []);
   const _shootOrigin = useMemo(() => new THREE.Vector3(), []);
   const _shootDir = useMemo(() => new THREE.Vector3(), []);
+  const _muzzlePos = useMemo(() => new THREE.Vector3(), []);
   
   // Camera math helpers
   const _camEuler = useMemo(() => new THREE.Euler(), []);
@@ -130,9 +132,11 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
       if (now - lastFireTime.current >= fireRate) {
         lastFireTime.current = now;
         
-        // Muzzle flash
+        // Muzzle flash visual
         if (muzzleFlashRef.current) {
           muzzleFlashRef.current.visible = true;
+          muzzleFlashRef.current.getWorldPosition(_muzzlePos);
+          onSpawnParticles?.([_muzzlePos.x, _muzzlePos.y, _muzzlePos.z], "#fbbf24");
           setTimeout(() => {
             if (muzzleFlashRef.current) muzzleFlashRef.current.visible = false;
           }, 50);
@@ -165,7 +169,7 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
           while (targetObj) {
             if (targetObj.userData && targetObj.userData.takeDamage) {
               targetObj.userData.takeDamage(damageAmount);
-              onHitEnemy?.(targetObj.name || 'عدو', damageAmount);
+              onHitEnemy?.(targetObj.name || 'عدو', damageAmount, [hit.point.x, hit.point.y, hit.point.z]);
               return;
             }
             targetObj = targetObj.parent;
