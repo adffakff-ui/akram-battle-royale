@@ -1,0 +1,6 @@
+{
+  "name": "Mobile 3D Joystick Controller",
+  "description": "A 3D player movement system with a mobile-friendly on-screen joystick, inspired by Unity CharacterController logic.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
