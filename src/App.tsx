@@ -22,7 +22,8 @@ import {
   LucideMapPin,
   LucideTarget,
   LucideChevronDown,
-  LucideChevronUp
+  LucideChevronUp,
+  LucideX
 } from 'lucide-react';
 import * as THREE from 'three';
 
@@ -34,7 +35,8 @@ export default function App() {
   const [playerHealth, setPlayerHealth] = useState(100);
   const [targetResetKey, setTargetResetKey] = useState(0);
   const [isDamageFlash, setIsDamageFlash] = useState(false);
-  const [showMissionCard, setShowMissionCard] = useState(true);
+  const [showMissionCard, setShowMissionCard] = useState(false);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
   
   // Player Position & Yemen Governorate Tracker
   const [playerCoords, setPlayerCoords] = useState({ x: 0, z: 0 });
@@ -188,7 +190,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="w-full h-screen bg-slate-900 overflow-hidden font-sans relative select-none">
+    <div className="w-full h-screen bg-slate-900 overflow-hidden font-sans relative select-none touch-none">
       
       {/* وميض الضرر الأحمر عند التعرض للضرب (Damage Flash Vignette) */}
       {isDamageFlash && (
@@ -237,119 +239,158 @@ export default function App() {
         onTeleportToGov={handleTeleportToGov}
       />
 
-      {/* بطاقة مهمة المحافظة الحالية (Current Province Mission Objective) */}
-      <div className="fixed top-24 left-8 z-30 pointer-events-auto hidden sm:block">
-        <div className="bg-slate-950/80 backdrop-blur-md border border-amber-500/30 p-4 rounded-2xl w-80 shadow-2xl text-right">
-          <div className="flex justify-between items-center mb-2">
+      {/* Mobile-Optimized Top HUD Layer */}
+      <div className="absolute top-0 left-0 w-full p-3 sm:p-5 pointer-events-none z-10 flex flex-col gap-3">
+        <header className="flex justify-between items-center gap-2">
+          {/* Brand & Gov title */}
+          <div className="bg-slate-950/80 backdrop-blur-md border border-amber-500/30 px-3 py-2 rounded-xl flex items-center gap-2 shadow-lg">
+            <span className="text-lg">🇾🇪</span>
+            <div className="flex flex-col">
+              <span className="text-white font-extrabold text-xs tracking-tight">باتل رويال اليمن</span>
+              <span className="text-amber-400 text-[9px] font-bold">22 محافظة</span>
+            </div>
+          </div>
+
+          {/* Top Actions: Mission toggle, Inventory modal button, Reset, PWA */}
+          <div className="flex items-center gap-1.5 pointer-events-auto">
             <button
               onClick={() => setShowMissionCard(!showMissionCard)}
-              className="text-white/50 hover:text-white p-1"
+              className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 p-2 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95"
+              title="مهمة المحافظة الحالية"
             >
-              {showMissionCard ? <LucideChevronUp className="w-4 h-4" /> : <LucideChevronDown className="w-4 h-4" />}
+              <LucideTarget className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2">
-              <span className="text-amber-400 font-extrabold text-xs">مهمة {currentGov.name}</span>
-              <LucideTarget className="w-4 h-4 text-amber-400" />
-            </div>
-          </div>
-          {showMissionCard && (
-            <div className="space-y-1.5 text-xs">
-              <p className="text-white font-medium leading-relaxed">
-                {currentGov.mission}
-              </p>
-              <div className="pt-2 border-t border-white/10 flex justify-between items-center text-[11px] text-white/50">
-                <span>المعلم: {currentGov.landmark}</span>
-                <span className="text-emerald-400 font-bold">نشطة ⚔️</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* HUD Layer (Health, Inventory, Header) */}
-      <div className="absolute top-0 left-0 w-full p-6 md:p-8 pointer-events-none z-10 flex flex-col gap-6">
-        <header className="flex justify-between items-start">
-          <div className="bg-slate-950/75 backdrop-blur-md border border-amber-500/30 p-4 rounded-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/40">
-              <span className="text-xl">🇾🇪</span>
-            </div>
-            <div>
-              <h1 className="text-white font-extrabold text-sm tracking-tight leading-none flex items-center gap-1.5">
-                <span>باتل رويال اليمن</span>
-                <span className="text-amber-400 text-xs font-normal">• 22 محافظة</span>
-              </h1>
-              <p className="text-amber-400/80 text-[10px] font-bold tracking-wider mt-1">
-                صنعاء • عدن • حضرموت • مأرب • سقطرى
-              </p>
-            </div>
-          </div>
+            <button
+              onClick={() => setShowInventoryModal(true)}
+              className="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95 relative"
+              title="حقيبة الغنائم"
+            >
+              <LucideBackpack className="w-4 h-4" />
+              <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                {inventory.length}/5
+              </span>
+            </button>
 
-          <div className="flex items-center gap-2 pointer-events-auto">
             <PWAInstallButton />
+
             <button 
               onClick={handleResetTargets}
-              className="bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full flex items-center gap-2 transition-all active:scale-95 group text-white"
+              className="bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/15 p-2 rounded-xl flex items-center justify-center transition-all active:scale-95 text-white"
+              title="إعادة المعركة"
             >
-              <LucideRefreshCcw className="w-3.5 h-3.5 text-white/60 group-hover:rotate-180 transition-transform duration-500" />
-              <span className="text-white/80 text-[11px] font-bold tracking-tight">إعادة المعركة</span>
+              <LucideRefreshCcw className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
 
-        {/* Player Stats & Inventory */}
-        <div className="flex flex-col gap-4">
-          <HealthBar current={playerHealth} max={100} label="صحة المحارب" />
-          
-          {/* Inventory Panel (Backpack with 0/5 count and item actions) */}
-          <div className="bg-slate-950/75 backdrop-blur-md border border-white/10 p-5 rounded-3xl w-72 pointer-events-auto shadow-2xl text-right">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-amber-400 font-mono text-xs font-bold">{inventory.length} / {MAX_CAPACITY}</span>
+        {/* Compact Health Bar */}
+        <div className="flex items-center justify-between max-w-xs">
+          <HealthBar current={playerHealth} max={100} label="الصحة" />
+        </div>
+      </div>
+
+      {/* Mission Card Drawer (Collapsible) */}
+      {showMissionCard && (
+        <div className="fixed top-20 right-3 left-3 sm:left-auto sm:right-5 z-40 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-slate-950/90 backdrop-blur-md border border-amber-500/40 p-4 rounded-2xl max-w-sm shadow-2xl text-right">
+            <div className="flex justify-between items-center mb-2">
+              <button
+                onClick={() => setShowMissionCard(false)}
+                className="text-white/50 hover:text-white p-1"
+              >
+                <LucideX className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-amber-400 font-extrabold text-xs">مهمة {currentGov.name}</span>
+                <LucideTarget className="w-4 h-4 text-amber-400" />
+              </div>
+            </div>
+            <div className="space-y-2 text-xs">
+              <p className="text-white font-medium leading-relaxed">
+                {currentGov.mission}
+              </p>
+              <div className="pt-2 border-t border-white/10 flex justify-between items-center text-[11px] text-white/60">
+                <span>المعلم: {currentGov.landmark}</span>
+                <span className="text-emerald-400 font-bold">نشطة ⚔️</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Modal / Drawer for Mobile & Desktop */}
+      {showInventoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200 pointer-events-auto">
+          <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-3xl p-5 shadow-2xl text-right flex flex-col max-h-[80vh]">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/10">
+              <button
+                onClick={() => setShowInventoryModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white"
+              >
+                <LucideX className="w-4 h-4" />
+              </button>
               <div className="flex items-center gap-2">
                 <span className="text-white text-xs font-bold uppercase tracking-widest">حقيبة الغنائم</span>
                 <LucideBackpack className="w-4 h-4 text-amber-400" />
+                <span className="text-amber-400 font-mono text-xs">({inventory.length}/5)</span>
               </div>
             </div>
 
-            {inventory.length === 0 ? (
-              <div className="py-8 text-center">
-                <LucideBox className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                <p className="text-white/30 text-[10px] font-bold tracking-widest">لا توجد عناصر بالحقيبة</p>
-                <p className="text-white/20 text-[9px] mt-1">اقترب من الصناديق في الخريطة لالتقاطها</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                {inventory.map((item) => (
-                  <button
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
+              {inventory.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <LucideBox className="w-10 h-10 text-white/10 mx-auto" />
+                  <p className="text-white/40 text-xs font-bold">لا توجد عناصر في الحقيبة حالياً</p>
+                  <p className="text-white/30 text-[10px]">اقترب من الصناديق في الخريطة لالتقاطها</p>
+                </div>
+              ) : (
+                inventory.map((item) => (
+                  <div
                     key={item.id}
-                    onClick={() => handleUseItem(item.id)}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group text-right"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
                   >
-                    <span className="text-amber-400 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase">استخدام</span>
+                    <button
+                      onClick={() => {
+                        handleUseItem(item.id);
+                        if (inventory.length <= 1) setShowInventoryModal(false);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors shadow"
+                    >
+                      استخدام
+                    </button>
                     <div className="flex items-center gap-3">
-                      <div>
-                        <p className="text-white text-[11px] font-bold tracking-tight">{item.name}</p>
-                        <p className="text-white/40 text-[9px] uppercase tracking-wide">{item.type}</p>
+                      <div className="text-right">
+                        <p className="text-white text-xs font-bold">{item.name}</p>
+                        <p className="text-white/50 text-[10px]">{item.type} • +{item.value} HP</p>
                       </div>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
                         item.type === LootType.HealthKit ? 'bg-emerald-500/20 text-emerald-400' : 
                         item.type === LootType.Ammo ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'
                       }`}>
                         {item.type === LootType.HealthKit ? <LucideHeartPulse className="w-4 h-4" /> : <LucideBox className="w-4 h-4" />}
                       </div>
                     </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowInventoryModal(false)}
+              className="mt-4 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
+            >
+              إغلاق الحقيبة
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Notifications Toast */}
       {notification && (
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none">
           <div className={`
-            px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl backdrop-blur-md border 
+            px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-2xl backdrop-blur-md border text-xs sm:text-sm
             ${notification.type === 'error' 
               ? 'bg-rose-500/90 border-rose-400/50 shadow-rose-500/20 text-white' 
               : notification.type === 'warning'
@@ -359,11 +400,11 @@ export default function App() {
               : 'bg-emerald-500/90 border-emerald-400/50 shadow-emerald-500/20 text-white'
             }
           `}>
-            {notification.type === 'error' ? <LucideXCircle className="w-5 h-5" /> : 
-             notification.type === 'warning' ? <LucideZap className="w-5 h-5 animate-pulse" /> :
-             notification.type === 'info' ? <LucideMapPin className="text-amber-400 w-5 h-5" /> :
-             <LucidePackage className="w-5 h-5" />}
-            <span className="font-bold text-sm tracking-tight">{notification.message}</span>
+            {notification.type === 'error' ? <LucideXCircle className="w-4 h-4" /> : 
+             notification.type === 'warning' ? <LucideZap className="w-4 h-4 animate-pulse" /> :
+             notification.type === 'info' ? <LucideMapPin className="text-amber-400 w-4 h-4" /> :
+             <LucidePackage className="w-4 h-4" />}
+            <span className="font-bold tracking-tight">{notification.message}</span>
           </div>
         </div>
       )}
@@ -371,21 +412,6 @@ export default function App() {
       {/* On-screen Controls Overlay (Touch Joystick & Primary Fire Button) */}
       <Joystick onMove={handleJoystickMove} />
       <ShootButton onShootStateChange={handleShootStateChange} />
-
-      {/* Control Tips Dock (Bottom Center) */}
-      <div className="fixed bottom-12 right-48 z-40 hidden lg:block pointer-events-none">
-        <div className="bg-slate-950/70 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-xl text-right max-w-[240px]">
-          <p className="text-amber-400 text-xs font-bold flex items-center gap-1.5 justify-end mb-1">
-            <span>التحكم المتكامل</span>
-            <LucideTarget className="w-3.5 h-3.5" />
-          </p>
-          <p className="text-white/60 text-[10px] leading-relaxed">
-            • <strong>الحركة:</strong> عصا التحكم باللمس أو أزرار W,A,S,D.<br/>
-            • <strong>الإطلاق:</strong> الزر الأحمر أو زر المسافة Space.<br/>
-            • <strong>الكاميرا:</strong> سحب الشاشة يميناً للالتفاف.
-          </p>
-        </div>
-      </div>
 
       {/* Background Stylization */}
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950/30 via-transparent to-transparent z-0" />
