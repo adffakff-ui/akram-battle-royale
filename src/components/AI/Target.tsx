@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { sounds } from '../../utils/soundEffects';
 
 interface TargetProps {
   position: [number, number, number];
@@ -16,17 +17,19 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
   const [health, setHealth] = useState(100);
   const [isDead, setIsDead] = useState(false);
   const [isHit, setIsHit] = useState(false);
+  const [showDamagePopup, setShowDamagePopup] = useState(false);
   
   // AI Settings
-  const detectionRange = 15;
-  const attackRange = 3;
-  const attackCooldown = 2; // seconds
-  const moveSpeed = 3;
+  const detectionRange = 16;
+  const attackRange = 3.2;
+  const attackCooldown = 2.0; // seconds
+  const moveSpeed = 3.2;
   const lastAttackTime = useRef(0);
 
   const takeDamage = (amount: number) => {
     if (isDead) return;
     
+    sounds.playHit();
     setHealth((prev) => {
       const next = Math.max(0, prev - amount);
       if (next <= 0) {
@@ -37,7 +40,9 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
     });
 
     setIsHit(true);
-    setTimeout(() => setIsHit(false), 100);
+    setShowDamagePopup(true);
+    setTimeout(() => setIsHit(false), 120);
+    setTimeout(() => setShowDamagePopup(false), 700);
   };
 
   useFrame((state, delta) => {
@@ -67,8 +72,8 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
       const now = state.clock.getElapsedTime();
       if (now - lastAttackTime.current >= attackCooldown) {
         lastAttackTime.current = now;
-        onAttackPlayer(10); // Bot deals 10 damage
-        console.log(`⚔️ ${name} attacked the player!`);
+        sounds.playHit();
+        onAttackPlayer(12); // Bot deals 12 damage
       }
     }
   });
@@ -77,21 +82,36 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
 
   return (
     <group ref={meshRef} position={position} userData={{ type: 'target', takeDamage }}>
-      {/* Bot Body (Capsule/Enemy look) */}
+      {/* Bot Body (Capsule with aggressive red armor) */}
       <mesh castShadow name={name}>
         <capsuleGeometry args={[0.5, 1, 4, 16]} />
         <meshStandardMaterial 
-          color={isHit ? "#ffffff" : (health < 50 ? "#fca5a5" : "#ef4444")} 
-          emissive={isHit ? "#ffffff" : "#991b1b"}
-          emissiveIntensity={isHit ? 2 : 0.5}
+          color={isHit ? "#ffffff" : (health < 40 ? "#fda4af" : "#e11d48")} 
+          emissive={isHit ? "#ffffff" : "#881337"}
+          emissiveIntensity={isHit ? 2.5 : 0.4}
         />
       </mesh>
 
-      {/* Eyes/Visor (To show direction) */}
+      {/* Eyes/Visor (Direction indicator) */}
       <mesh position={[0, 0.4, 0.4]}>
-        <boxGeometry args={[0.4, 0.1, 0.1]} />
-        <meshBasicMaterial color="#000000" />
+        <boxGeometry args={[0.4, 0.12, 0.1]} />
+        <meshBasicMaterial color="#0f172a" />
       </mesh>
+
+      {/* Floating Damage Popup when struck */}
+      {showDamagePopup && (
+        <Billboard position={[0, 2.6, 0]}>
+          <Text
+            fontSize={0.45}
+            color="#fbbf24"
+            anchorX="center"
+            anchorY="middle"
+            font="https://fonts.gstatic.com/s/plusjakartasans/v8/L0xPDFytE3BB6zK9V9K42w.woff2"
+          >
+            -25 HP
+          </Text>
+        </Billboard>
+      )}
 
       {/* Health Bar Billboard */}
       <Billboard position={[0, 1.8, 0]}>
@@ -105,7 +125,7 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
             <meshBasicMaterial color={health > 50 ? "#10b981" : "#f43f5e"} />
           </mesh>
           <Text
-            position={[0, 0.4, 0]}
+            position={[0, 0.38, 0]}
             fontSize={0.25}
             color="white"
             anchorX="center"

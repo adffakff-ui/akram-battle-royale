@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Float, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { sounds } from '../../utils/soundEffects';
 
 export enum LootType {
   Weapon = 'Weapon',
@@ -48,6 +49,7 @@ export const LootItem: React.FC<LootItemProps> = ({
 
     if (distance <= pickupRange) {
       setIsPickedUp(true);
+      sounds.playPickup();
       onPickup({ name, type, value });
     }
   });

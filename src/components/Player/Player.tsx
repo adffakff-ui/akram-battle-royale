@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useMemo, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -6,24 +6,62 @@ interface PlayerProps {
   joystickInput: { x: number; y: number };
   isShooting: boolean;
   cameraRotation: { x: number; y: number };
+  onPositionChange?: (x: number, z: number) => void;
+  onHitEnemy?: (enemyName: string, damage: number) => void;
 }
 
-export const Player = forwardRef<THREE.Group, PlayerProps>(({ joystickInput, isShooting, cameraRotation }, ref) => {
+export const Player = forwardRef<THREE.Group, PlayerProps>(({ 
+  joystickInput, 
+  isShooting, 
+  cameraRotation, 
+  onPositionChange,
+  onHitEnemy
+}, ref) => {
   const meshRef = useRef<THREE.Group>(null);
   const muzzleFlashRef = useRef<THREE.Mesh>(null);
+  const tracerRef = useRef<THREE.Line>(null);
   const playerVelocity = useRef(new THREE.Vector3(0, 0, 0));
   const isGrounded = useRef(true);
   const lastFireTime = useRef(0);
+  const lastPosReportTime = useRef(0);
+
+  // Keyboard controls state
+  const keysRef = useRef({ forward: false, backward: false, left: false, right: false, shoot: false });
 
   // Expose the internal meshRef to the forwarded ref
   useImperativeHandle(ref, () => meshRef.current!);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keysRef.current.forward = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keysRef.current.backward = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keysRef.current.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keysRef.current.right = true;
+      if (e.code === 'Space') keysRef.current.shoot = true;
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keysRef.current.forward = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keysRef.current.backward = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keysRef.current.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keysRef.current.right = false;
+      if (e.code === 'Space') keysRef.current.shoot = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   // Constants
   const playerSpeed = 8.0;
   const gravityValue = -18.0;
   const rotationSmoothing = 0.15;
   const fireRate = 0.15;
-  const range = 50;
+  const range = 100;
 
   // Camera Settings
   const cameraOffset = useMemo(() => new THREE.Vector3(0, 2.5, 8), []);
@@ -46,16 +84,32 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({ joystickInput, isS
   useFrame((state, delta) => {
     if (!meshRef.current) return;
 
-    // 1. Movement logic
-    const moveX = joystickInput.x;
-    const moveZ = -joystickInput.y;
+    // 1. Movement logic (Combines Touch Joystick + Keyboard WASD)
+    let moveX = joystickInput.x;
+    let moveZ = -joystickInput.y;
+
+    if (keysRef.current.left) moveX -= 1;
+    if (keysRef.current.right) moveX += 1;
+    if (keysRef.current.forward) moveZ -= 1;
+    if (keysRef.current.backward) moveZ += 1;
+
     _moveDir.set(moveX, 0, moveZ);
 
     if (_moveDir.length() > 0.01) {
+      if (_moveDir.length() > 1) _moveDir.normalize();
       meshRef.current.position.add(_moveDir.clone().multiplyScalar(playerSpeed * delta));
-      const targetAngle = Math.atan2(moveX, moveZ);
+      const targetAngle = Math.atan2(_moveDir.x, _moveDir.z);
       _targetRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), targetAngle);
       meshRef.current.quaternion.slerp(_targetRotation, rotationSmoothing);
+    }
+
+    // Report position every 100ms
+    if (onPositionChange) {
+      const now = state.clock.getElapsedTime();
+      if (now - lastPosReportTime.current > 0.1) {
+        lastPosReportTime.current = now;
+        onPositionChange(meshRef.current.position.x, meshRef.current.position.z);
+      }
     }
 
     // 2. Gravity logic
@@ -69,12 +123,14 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({ joystickInput, isS
     if (!isGrounded.current) playerVelocity.current.y += gravityValue * delta;
     meshRef.current.position.y += playerVelocity.current.y * delta;
 
-    // 3. Shooting logic
-    if (isShooting) {
+    // 3. Shooting logic (Touch Button OR Spacebar)
+    const activeShooting = isShooting || keysRef.current.shoot;
+    if (activeShooting) {
       const now = state.clock.getElapsedTime();
       if (now - lastFireTime.current >= fireRate) {
         lastFireTime.current = now;
         
+        // Muzzle flash
         if (muzzleFlashRef.current) {
           muzzleFlashRef.current.visible = true;
           setTimeout(() => {
@@ -82,10 +138,9 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({ joystickInput, isS
           }, 50);
         }
 
-        const range = 100;
         const damageAmount = 25;
 
-        // Origin and direction from Camera (matches MobileWeaponController.cs)
+        // Origin and direction from Camera (third-person reticle aiming)
         state.camera.getWorldPosition(_shootOrigin);
         state.camera.getWorldDirection(_shootDir);
 
@@ -110,6 +165,7 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({ joystickInput, isS
           while (targetObj) {
             if (targetObj.userData && targetObj.userData.takeDamage) {
               targetObj.userData.takeDamage(damageAmount);
+              onHitEnemy?.(targetObj.name || 'عدو', damageAmount);
               return;
             }
             targetObj = targetObj.parent;
@@ -132,26 +188,32 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({ joystickInput, isS
 
   return (
     <group ref={meshRef} position={[0, 1, 0]}>
-      {/* Main Body */}
+      {/* جسم المحارب اليمني (Player Avatar with Arabian Belt & Armor) */}
       <mesh castShadow receiveShadow>
         <capsuleGeometry args={[0.5, 1, 4, 16]} />
         <meshStandardMaterial color="#4f46e5" roughness={0.3} metalness={0.2} />
       </mesh>
 
-      {/* Visor */}
+      {/* حزام الجنبية التراثي اليمني (Traditional Yemeni Jambiya Belt) */}
+      <mesh position={[0, 0, 0.45]}>
+        <boxGeometry args={[0.5, 0.25, 0.2]} />
+        <meshStandardMaterial color="#d97706" metalness={0.8} roughness={0.2} />
+      </mesh>
+
+      {/* خوذة / قناع الرؤية (Visor) */}
       <mesh castShadow position={[0, 0.4, 0.4]}>
         <boxGeometry args={[0.6, 0.2, 0.2]} />
         <meshStandardMaterial color="#1e1b4b" roughness={0.1} metalness={0.8} />
       </mesh>
 
-      {/* Muzzle Flash */}
-      <mesh ref={muzzleFlashRef} position={[0, 0.4, 1.2]} visible={false}>
-        <sphereGeometry args={[0.2, 8, 8]} />
+      {/* وميض فوهة السلاح عند الإطلاق (Muzzle Flash) */}
+      <mesh ref={muzzleFlashRef} position={[0, 0.3, 1.4]} visible={false}>
+        <sphereGeometry args={[0.3, 8, 8]} />
         <meshBasicMaterial color="#fbbf24" />
-        <pointLight color="#fbbf24" intensity={2} distance={3} />
+        <pointLight color="#fbbf24" intensity={3} distance={5} />
       </mesh>
 
-      {/* Backpack */}
+      {/* حقيبة الغنائم واللوت التكتيكية (Tactical Backpack) */}
       <mesh castShadow position={[0, 0.1, -0.4]}>
         <boxGeometry args={[0.6, 0.8, 0.3]} />
         <meshStandardMaterial color="#3730a3" roughness={0.5} />

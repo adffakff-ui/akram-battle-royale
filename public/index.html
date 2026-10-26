@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mobile 3D Joystick Controller</title>
+    <meta name="description" content="A 3D player movement system with a mobile-friendly on-screen joystick, inspired by Unity CharacterController logic." />
+    <meta property="og:title" content="Mobile 3D Joystick Controller" />
+    <meta property="og:description" content="A 3D player movement system with a mobile-friendly on-screen joystick, inspired by Unity CharacterController logic." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BattleRoyale" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script type="module" crossorigin src="/assets/index-C6gjfiUV.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BN4aVpNc.css">
+  </head>
+  <body class="bg-slate-900 select-none overflow-hidden touch-none">
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
+

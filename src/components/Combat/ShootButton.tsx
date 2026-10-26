@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LucideTarget } from 'lucide-react';
+import { sounds } from '../../utils/soundEffects';
 
 interface ShootButtonProps {
   onShootStateChange: (isShooting: boolean) => void;
@@ -11,6 +12,7 @@ export const ShootButton: React.FC<ShootButtonProps> = ({ onShootStateChange }) 
   const handleStart = (e: React.TouchEvent | React.MouseEvent) => {
     setActive(true);
     onShootStateChange(true);
+    sounds.playShoot();
   };
 
   const handleEnd = () => {
@@ -19,8 +21,9 @@ export const ShootButton: React.FC<ShootButtonProps> = ({ onShootStateChange }) 
   };
 
   return (
-    <div className="fixed bottom-12 right-12 z-50 select-none touch-none">
+    <div id="primary-fire-container" className="fixed bottom-12 right-12 z-50 select-none touch-none">
       <button
+        id="primary-fire-button"
         onMouseDown={handleStart}
         onMouseUp={handleEnd}
         onMouseLeave={handleEnd}
@@ -43,7 +46,7 @@ export const ShootButton: React.FC<ShootButtonProps> = ({ onShootStateChange }) 
       </button>
       
       <div className="mt-4 text-center">
-        <span className="text-[10px] font-bold text-rose-500/60 uppercase tracking-widest">
+        <span className="text-[10px] font-bold text-rose-400/80 uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full border border-rose-500/20">
           Primary Fire
         </span>
       </div>

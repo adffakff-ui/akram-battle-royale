@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Target ring -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#ring)" stroke-width="24" opacity="0.4"/>
+  <circle cx="256" cy="256" r="100" fill="none" stroke="#60a5fa" stroke-width="20"/>
+  <!-- Crosshairs -->
+  <line x1="256" y1="60" x2="256" y2="130" stroke="#f43f5e" stroke-width="16" stroke-linecap="round"/>
+  <line x1="256" y1="382" x2="256" y2="452" stroke="#f43f5e" stroke-width="16" stroke-linecap="round"/>
+  <line x1="60" y1="256" x2="130" y2="256" stroke="#f43f5e" stroke-width="16" stroke-linecap="round"/>
+  <line x1="382" y1="256" x2="452" y2="256" stroke="#f43f5e" stroke-width="16" stroke-linecap="round"/>
+  <!-- Center Bullseye -->
+  <circle cx="256" cy="256" r="36" fill="#f43f5e"/>
+</svg>
