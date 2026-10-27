@@ -14,29 +14,40 @@ class SoundManager {
     }
   }
 
-  // 1. Shoot Sound (Laser / Rifle Blaster)
+  // 1. Shoot Sound (Realistic Gunshot)
   playShoot() {
     try {
       this.init();
       if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      
+      // Main Bang
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.12);
-
-      gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
 
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.12);
-    } catch {
-      // Ignore audio policy restrictions
-    }
+      // Noise (Muzzle Blast)
+      const bufferSize = this.ctx.sampleRate * 0.1;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.2, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      noise.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
+      noise.start(now);
+    } catch {}
   }
 
   // 2. Hit / Damage Sound (Impact Thud)

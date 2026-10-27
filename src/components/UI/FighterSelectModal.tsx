@@ -4,7 +4,7 @@ import { sounds } from '../../utils/soundEffects';
 
 interface FighterSelectModalProps {
   isOpen: boolean;
-  onStartGame: (fighter: { name: string; color: string; speed: number; hp: number }, level: { name: string; difficulty: string; enemyCount: number }) => void;
+  onStartGame: (fighter: typeof FIGHTERS[0], level: typeof COMBAT_LEVELS[0]) => void;
 }
 
 export const FIGHTERS = [

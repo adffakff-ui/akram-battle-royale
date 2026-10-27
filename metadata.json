@@ -1,6 +1,6 @@
 {
-  "name": "Mobile 3D Joystick Controller",
-  "description": "A 3D player movement system with a mobile-friendly on-screen joystick, inspired by Unity CharacterController logic.",
+  "name": "Battle Royale Yemen (22 Governorates)",
+  "description": "A full-scale battle royale game representing the 22 Yemeni governorates, featuring intelligent AI, persistent player stats via Firebase, and a competitive leaderboard.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

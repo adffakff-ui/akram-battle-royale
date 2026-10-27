@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "Stores player statistics, progression, and profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "totalKills": { "type": "integer", "description": "Lifetime kills" },
+        "totalWins": { "type": "integer", "description": "Lifetime victory royals" },
+        "totalMatches": { "type": "integer", "description": "Total matches played" },
+        "exploredGovs": { 
+          "type": "array", 
+          "description": "IDs of Yemeni governorates visited"
+        },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "level": { "type": "integer", "description": "Player combat level" }
+      },
+      "required": ["uid", "displayName", "totalKills", "totalWins"]
+    },
+    "matches": {
+      "title": "Match Result",
+      "description": "Records individual match performance for history.",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string" },
+        "userId": { "type": "string" },
+        "kills": { "type": "integer" },
+        "won": { "type": "boolean" },
+        "governorateId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["matchId", "userId", "kills", "won", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Primary user data collection."
+    },
+    "/matches/{matchId}": {
+      "schema": "matches",
+      "description": "Individual match history logs."
+    }
+  }
+}

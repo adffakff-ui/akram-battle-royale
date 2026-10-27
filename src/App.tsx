@@ -29,6 +29,10 @@ import {
   LucideLoader2
 } from 'lucide-react';
 import * as THREE from 'three';
+import { auth, saveMatchResult } from './lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { AuthSection } from './components/UI/AuthSection';
+import { LeaderboardModal } from './components/UI/LeaderboardModal';
 
 const MAX_CAPACITY = 5;
 
@@ -46,9 +50,14 @@ export default function App() {
   // Kill Feed / Event Logs
   const [logs, setLogs] = useState<Array<{ id: string, msg: string, type: 'kill' | 'loot' | 'info' }>>([]);
   
+  // Firebase User
+  const [user, setUser] = useState<User | null>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
   // Combat progression
   const [defeatedCount, setDefeatedCount] = useState(0);
   const [isVictory, setIsVictory] = useState(false);
+  const [matchSaved, setMatchSaved] = useState(false);
 
   // Particles state
   const [particles, setParticles] = useState<Array<{ id: string, pos: [number, number, number], color: string }>>([]);
@@ -84,7 +93,16 @@ export default function App() {
   useEffect(() => {
     // Simulate world loading
     const timer = setTimeout(() => setIsLoading(false), 2000);
-    return () => clearTimeout(timer);
+    
+    // Auth Listener
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   const addLog = useCallback((msg: string, type: 'kill' | 'loot' | 'info' = 'info') => {
@@ -164,6 +182,7 @@ export default function App() {
     setPlayerHealth(fighter.hp);
     setDefeatedCount(0);
     setIsVictory(false);
+    setMatchSaved(false);
     setTargetResetKey(prev => prev + 1);
     addLog(`⚔️ بدأت المعركة بنجاح!`, 'info');
   }, [addLog]);
@@ -181,10 +200,15 @@ export default function App() {
       if (next >= selectedLevel.enemyCount) {
         setIsVictory(true);
         sounds.playPickup();
+        // Save Victory to Firebase
+        if (user && !matchSaved) {
+          saveMatchResult(next, true, currentGov.id);
+          setMatchSaved(true);
+        }
       }
       return next;
     });
-  }, [selectedLevel, addLog]);
+  }, [selectedLevel, addLog, user, matchSaved, currentGov.id]);
 
   const handleTakeDamage = useCallback((amount: number = 10, isZone: boolean = false) => {
     setIsDamageFlash(true);
@@ -194,19 +218,25 @@ export default function App() {
       const next = Math.max(0, prev - amount);
       if (next <= 0) {
         addLog('☠️ لقد سقطت في المعركة!', 'info');
+        // Save Match Loss to Firebase
+        if (user && !matchSaved) {
+          saveMatchResult(defeatedCount, false, currentGov.id);
+          setMatchSaved(true);
+        }
       } else if (isZone) {
         setNotification({ message: '⚠️ أنت خارج المنطقة الآمنة!', type: 'warning' });
         setTimeout(() => setNotification(null), 1000);
       }
       return next;
     });
-  }, [addLog]);
+  }, [addLog, user, matchSaved, defeatedCount, currentGov.id]);
 
   const handleResetTargets = useCallback(() => {
     setTargetResetKey(prev => prev + 1);
     setPlayerHealth(selectedFighter.hp);
     setDefeatedCount(0);
     setIsVictory(false);
+    setMatchSaved(false);
     if (playerRef.current) {
       playerRef.current.position.set(0, 2, 0);
       setPlayerCoords({ x: 0, z: 0 });
@@ -254,6 +284,7 @@ export default function App() {
 
       {/* Fighter Selection Modal */}
       {!isLoading && <FighterSelectModal isOpen={showFighterModal} onStartGame={handleStartGame} />}
+      <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
 
       {isDamageFlash && (
         <div className="absolute inset-0 z-30 pointer-events-none bg-rose-600/25 ring-8 ring-inset ring-rose-500 animate-pulse" />
@@ -346,6 +377,8 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5 pointer-events-auto">
+            <button onClick={() => setShowLeaderboard(true)} className="bg-amber-500 hover:bg-amber-400 text-slate-950 p-2 rounded-xl transition-all active:scale-95 shadow-lg"><LucideTrophy className="w-4 h-4" /></button>
+            <AuthSection user={user} />
             <button onClick={() => setShowFighterModal(true)} className="bg-amber-600/30 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95"><LucideSword className="w-3.5 h-3.5" /><span className="hidden sm:inline">المقاتلين</span></button>
             <button onClick={() => setShowMissionCard(!showMissionCard)} className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 p-2 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95"><LucideTarget className="w-4 h-4" /></button>
             <button onClick={() => setShowInventoryModal(true)} className="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95 relative"><LucideBackpack className="w-4 h-4" /><span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">{inventory.length}/5</span></button>

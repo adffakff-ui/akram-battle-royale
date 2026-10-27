@@ -65,11 +65,11 @@ export const World: React.FC<WorldProps> = ({
   // Random environmental clutter (rocks/bushes) to make world feel "fuller"
   const clutter = useMemo(() => {
     const items = [];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 200; i++) {
       items.push({
-        pos: [(Math.random() - 0.5) * 400, 0.5, (Math.random() - 0.5) * 400] as [number, number, number],
-        scale: 0.5 + Math.random() * 2,
-        color: Math.random() > 0.5 ? "#78350f" : "#44403c"
+        pos: [(Math.random() - 0.5) * 600, 0.5, (Math.random() - 0.5) * 600] as [number, number, number],
+        scale: 0.5 + Math.random() * 3,
+        color: Math.random() > 0.5 ? "#78350f" : Math.random() > 0.3 ? "#44403c" : "#2d2a28"
       });
     }
     return items;
