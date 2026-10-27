@@ -1,6 +1,8 @@
 {
-  "name": "Battle Royale Yemen (22 Governorates)",
-  "description": "A full-scale battle royale game representing the 22 Yemeni governorates, featuring intelligent AI, persistent player stats via Firebase, and a competitive leaderboard.",
+  "name": "محارب اليمن - Yemen Warrior",
+  "description": "لعبة باتل رويال متكاملة تمثل محافظات اليمن الـ 22، تتميز بذكاء اصطناعي متطور، وحفظ تقدم اللاعبين، ولوحة متصدرين تنافسية.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

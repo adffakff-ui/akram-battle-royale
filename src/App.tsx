@@ -274,14 +274,33 @@ export default function App() {
       
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="absolute inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center space-y-6">
-          <div className="relative w-24 h-24">
-            <LucideLoader2 className="w-24 h-24 text-amber-500 animate-spin" />
-            <span className="absolute inset-0 flex items-center justify-center text-2xl font-black text-white">🇾🇪</span>
+        <div className="absolute inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center space-y-8 animate-in fade-in duration-700">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-amber-500 rounded-full blur-3xl opacity-20 animate-pulse" />
+            <div className="relative w-40 h-40 sm:w-56 sm:h-56 rounded-[3rem] overflow-hidden border-4 border-amber-500/50 shadow-2xl shadow-amber-500/20 transform hover:scale-105 transition-transform duration-500">
+              <img 
+                src="/icon.png" 
+                alt="Yemen Warrior" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="absolute -bottom-4 -right-4 bg-amber-500 text-slate-950 px-4 py-1.5 rounded-xl font-black text-sm shadow-xl flex items-center gap-2">
+              <span className="text-lg">🇾🇪</span>
+              <span>2026</span>
+            </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-white text-xl font-black tracking-widest uppercase">Battle Royale Yemen</h2>
-            <p className="text-amber-500/60 text-xs font-bold mt-1">تجهيز الـ 22 محافظة والجنود...</p>
+          
+          <div className="text-center space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-white text-3xl sm:text-4xl font-black tracking-tighter uppercase">محارب اليمن</h2>
+              <p className="text-amber-500 font-bold text-sm tracking-[0.2em] opacity-80 uppercase">22 محافظة يمنية 🇾🇪</p>
+            </div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 animate-[loading_2s_ease-in-out_infinite]" />
+              </div>
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest animate-pulse">تجهيز المعالم التاريخية والجنود...</p>
+            </div>
           </div>
         </div>
       )}
@@ -294,14 +313,52 @@ export default function App() {
         <div className="absolute inset-0 z-30 pointer-events-none bg-rose-600/25 ring-8 ring-inset ring-rose-500 animate-pulse" />
       )}
 
-      {/* Victory Overlay */}
-      {isVictory && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-500 pointer-events-auto">
-          <div className="bg-slate-900 border-2 border-amber-500 p-10 rounded-[3rem] text-center shadow-2xl shadow-amber-500/20">
-            <LucideTrophy className="w-20 h-20 text-amber-400 mx-auto mb-6 animate-bounce" />
-            <h2 className="text-white text-3xl font-black mb-4">🏆 نصر يماني مؤزر!</h2>
-            <p className="text-amber-400 font-bold mb-8 text-lg">لقد قمت بتطهير المنطقة من الغزاة</p>
-            <button onClick={handleResetTargets} className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl transition-all shadow-xl active:scale-95">العودة للمعركة</button>
+      {/* Game Over / Victory Modal */}
+      {(isVictory || playerHealth <= 0) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 pointer-events-auto">
+          <div className="glass-panel max-w-sm w-full p-8 rounded-[2.5rem] text-center flex flex-col gap-6 border-2 border-amber-500/40 shadow-2xl shadow-amber-500/10">
+            <div className="flex justify-center">
+              {isVictory ? (
+                <LucideTrophy className="w-20 h-20 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] animate-bounce" />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-rose-500/20 border-2 border-rose-500 flex items-center justify-center text-rose-500">
+                  <LucideXCircle className="w-12 h-12" />
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black text-amber-400">
+                {isVictory ? 'نصر يماني مؤزر!' : 'انتهت المعركة'}
+              </h2>
+              <p className="text-slate-300 text-sm font-bold">
+                {isVictory 
+                  ? `لقد طهرت ${currentGov.name} من الغزاة بنجاح!` 
+                  : `لقد قاتلت ببسالة في ${currentGov.name}، حاول مرة أخرى.`}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="py-3 bg-slate-900/60 rounded-2xl border border-white/5">
+                <span className="text-[10px] text-slate-400 block font-black uppercase mb-1">النقاط المكتسبة</span>
+                <span className="text-xl font-black text-amber-400">{defeatedCount * 100}</span>
+              </div>
+              <div className="py-3 bg-slate-900/60 rounded-2xl border border-white/5">
+                <span className="text-[10px] text-slate-400 block font-black uppercase mb-1">الغنائم</span>
+                <span className="text-xl font-black text-emerald-400">{inventory.length} / 5</span>
+              </div>
+            </div>
+
+            <button 
+              onClick={handleResetTargets} 
+              className="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black rounded-2xl text-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3"
+            >
+              <span>{isVictory ? 'معركة جديدة ⚔️' : 'إعادة المحاولة 🔄'}</span>
+            </button>
+
+            {!user && (
+              <p className="text-[10px] text-white/40 font-bold">سجل دخولك لحفظ نتائجك في لوحة المتصدرين</p>
+            )}
           </div>
         </div>
       )}
@@ -364,44 +421,93 @@ export default function App() {
         onTeleportToGov={handleTeleportToGov}
       />
 
-      <div className="absolute top-0 left-0 w-full p-3 sm:p-5 pointer-events-none z-10 flex flex-col gap-3">
-        <header className="flex justify-between items-center gap-2">
-          <div className="bg-slate-950/80 backdrop-blur-md border border-amber-500/30 px-3 py-2 rounded-xl flex items-center gap-2 shadow-lg">
-            <span className="text-lg">🇾🇪</span>
-            <div className="flex flex-col">
-              <span className="text-white font-extrabold text-xs tracking-tight">{selectedFighter.name}</span>
-              <span className="text-amber-400 text-[9px] font-bold">{selectedLevel.name}</span>
+      {/* Top UI Overlay (Aligned with user snippet) */}
+      <div className="absolute top-0 left-0 right-0 z-40 p-4 w-full max-w-md mx-auto flex flex-col gap-3 pointer-events-none">
+        
+        {/* Region Selector Header */}
+        <div className="glass-panel rounded-2xl p-3 flex items-center justify-between pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+              <LucideMapPin className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] text-amber-400 font-black block leading-none mb-1">خريطة اليمن 🇾🇪</span>
+              <select 
+                value={currentGov.id} 
+                onChange={(e) => {
+                  const gov = YEMEN_GOVERNORATES.find(g => g.id === e.target.value);
+                  if (gov) handleTeleportToGov(gov);
+                }}
+                className="bg-slate-800/80 text-white font-bold text-xs rounded-lg px-2 py-1 border border-slate-600 outline-none focus:border-amber-400 pointer-events-auto"
+              >
+                {YEMEN_GOVERNORATES.map(gov => (
+                  <option key={gov.id} value={gov.id}>{gov.name}</option>
+                ))}
+              </select>
             </div>
           </div>
+          <div className="text-right">
+            <span className="text-[10px] text-slate-400 block font-bold">النقاط</span>
+            <span id="scoreText" className="text-xl font-black text-amber-400">
+              {defeatedCount * 100}
+            </span>
+          </div>
+        </div>
 
-          <div className="bg-rose-500/20 backdrop-blur-md border border-rose-500/40 px-3 py-2 rounded-xl flex items-center gap-2 shadow-lg">
-            <LucideSword className="w-3.5 h-3.5 text-rose-400" />
-            <div className="flex flex-col items-end">
-              <span className="text-rose-400 font-black text-xs">{selectedLevel.enemyCount - defeatedCount}</span>
-              <span className="text-white/40 text-[8px] font-bold uppercase">الجنود المتبقين</span>
+        {/* Health Bar (Aligned with snippet) */}
+        <div className="glass-panel rounded-xl p-3 pointer-events-auto">
+          <div className="flex justify-between items-center mb-1 text-[11px] font-black">
+            <span className="text-emerald-400 uppercase">صحة المحارب</span>
+            <span id="healthText" className="text-white">{Math.round(playerHealth)} / {selectedFighter.hp}</span>
+          </div>
+          <div className="w-full bg-slate-950/50 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-700/50">
+            <div 
+              className="bg-gradient-to-r from-emerald-600 to-teal-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
+              style={{ width: `${(playerHealth / selectedFighter.hp) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Inventory Bar (Aligned with snippet) */}
+        <div className="glass-panel rounded-xl p-3 flex items-center justify-between pointer-events-auto cursor-pointer" onClick={() => setShowInventoryModal(true)}>
+          <div className="flex items-center gap-2">
+            <LucideBackpack className="w-5 h-5 text-amber-400" />
+            <span className="text-[11px] font-black text-slate-200">حقيبة الغنائم</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-black text-amber-400">{inventory.length} / 5</span>
+            <div className="flex gap-1">
+              {[0, 1, 2, 3, 4].map(i => (
+                <div 
+                  key={i} 
+                  className={`w-3 h-3 rounded-full border transition-all duration-300 ${
+                    i < inventory.length 
+                      ? 'bg-amber-500 border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]' 
+                      : 'bg-slate-700/50 border-slate-600'
+                  }`}
+                />
+              ))}
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-1.5 pointer-events-auto">
-            <button 
-              onClick={() => setViewMode(prev => prev === 'FPS' ? 'TPS' : 'FPS')} 
-              className="bg-indigo-500 hover:bg-indigo-400 text-white p-2 rounded-xl transition-all active:scale-95 shadow-lg flex items-center gap-1"
-              title={viewMode === 'FPS' ? 'تبديل لمنظور الشخص الثالث' : 'تبديل لمنظور الشخص الأول'}
-            >
-              {viewMode === 'FPS' ? <LucideUser className="w-4 h-4" /> : <LucideEye className="w-4 h-4" />}
-              <span className="text-[10px] font-bold hidden sm:inline">{viewMode}</span>
-            </button>
-            <button onClick={() => setShowLeaderboard(true)} className="bg-amber-500 hover:bg-amber-400 text-slate-950 p-2 rounded-xl transition-all active:scale-95 shadow-lg"><LucideTrophy className="w-4 h-4" /></button>
-            <AuthSection user={user} />
-            <button onClick={() => setShowFighterModal(true)} className="bg-amber-600/30 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95"><LucideSword className="w-3.5 h-3.5" /><span className="hidden sm:inline">المقاتلين</span></button>
-            <button onClick={() => setShowMissionCard(!showMissionCard)} className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 p-2 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95"><LucideTarget className="w-4 h-4" /></button>
-            <button onClick={() => setShowInventoryModal(true)} className="bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95 relative"><LucideBackpack className="w-4 h-4" /><span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">{inventory.length}/5</span></button>
-            <PWAInstallButton />
-            <button onClick={handleResetTargets} className="bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/15 p-2 rounded-xl flex items-center justify-center transition-all active:scale-95 text-white"><LucideRefreshCcw className="w-3.5 h-3.5" /></button>
-          </div>
-        </header>
-        <div className="flex items-center justify-between max-w-xs">
-          <HealthBar current={playerHealth} max={selectedFighter.hp} label="الصحة" />
+        {/* Action Row */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button 
+            onClick={() => setViewMode(prev => prev === 'FPS' ? 'TPS' : 'FPS')} 
+            className="flex-1 glass-panel py-2 rounded-xl text-white font-black text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all border-indigo-500/30"
+          >
+            {viewMode === 'FPS' ? <LucideUser className="w-4 h-4 text-indigo-400" /> : <LucideEye className="w-4 h-4 text-indigo-400" />}
+            {viewMode === 'FPS' ? 'منظور الشخص الثالث' : 'منظور الشخص الأول'}
+          </button>
+          <button 
+            onClick={() => setShowLeaderboard(true)} 
+            className="glass-panel p-2 rounded-xl text-amber-400 active:scale-95 transition-all"
+          >
+            <LucideTrophy className="w-5 h-5" />
+          </button>
+          <AuthSection user={user} />
+          <PWAInstallButton />
         </div>
       </div>
 
