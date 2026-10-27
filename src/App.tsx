@@ -8,6 +8,7 @@ import { CameraTouchZone } from './components/Camera/CameraTouchZone';
 import { HealthBar } from './components/UI/HealthBar';
 import { PWAInstallButton } from './components/UI/PWAInstallButton';
 import { YemenMapRadar } from './components/UI/YemenMapRadar';
+import { Compass } from './components/UI/Compass';
 import { FighterSelectModal, FIGHTERS, COMBAT_LEVELS } from './components/UI/FighterSelectModal';
 import { ImpactParticles } from './components/Effects/Particles';
 import { LootType } from './components/Inventory/LootItem';
@@ -26,7 +27,9 @@ import {
   LucideSword,
   LucideTrophy,
   LucideX,
-  LucideLoader2
+  LucideLoader2,
+  LucideEye,
+  LucideUser
 } from 'lucide-react';
 import * as THREE from 'three';
 import { auth, saveMatchResult } from './lib/firebase';
@@ -89,6 +92,7 @@ export default function App() {
   
   // Camera rotation state (Degrees)
   const [cameraRotation, setCameraRotation] = useState({ x: 0, y: 15 });
+  const [viewMode, setViewMode] = useState<'FPS' | 'TPS'>('TPS');
 
   useEffect(() => {
     // Simulate world loading
@@ -340,6 +344,7 @@ export default function App() {
           joystickInput={joystickInput} 
           isShooting={isShooting} 
           cameraRotation={cameraRotation}
+          viewMode={viewMode}
           onPositionChange={handlePositionChange}
           onHitEnemy={handleHitEnemy}
           onSpawnParticles={spawnParticles}
@@ -350,6 +355,7 @@ export default function App() {
       </Canvas>
 
       <CameraTouchZone onRotate={handleCameraRotate} />
+      <Compass rotationX={cameraRotation.x} />
       <YemenMapRadar
         playerX={playerCoords.x}
         playerZ={playerCoords.z}
@@ -377,6 +383,14 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5 pointer-events-auto">
+            <button 
+              onClick={() => setViewMode(prev => prev === 'FPS' ? 'TPS' : 'FPS')} 
+              className="bg-indigo-500 hover:bg-indigo-400 text-white p-2 rounded-xl transition-all active:scale-95 shadow-lg flex items-center gap-1"
+              title={viewMode === 'FPS' ? 'تبديل لمنظور الشخص الثالث' : 'تبديل لمنظور الشخص الأول'}
+            >
+              {viewMode === 'FPS' ? <LucideUser className="w-4 h-4" /> : <LucideEye className="w-4 h-4" />}
+              <span className="text-[10px] font-bold hidden sm:inline">{viewMode}</span>
+            </button>
             <button onClick={() => setShowLeaderboard(true)} className="bg-amber-500 hover:bg-amber-400 text-slate-950 p-2 rounded-xl transition-all active:scale-95 shadow-lg"><LucideTrophy className="w-4 h-4" /></button>
             <AuthSection user={user} />
             <button onClick={() => setShowFighterModal(true)} className="bg-amber-600/30 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-all active:scale-95"><LucideSword className="w-3.5 h-3.5" /><span className="hidden sm:inline">المقاتلين</span></button>
