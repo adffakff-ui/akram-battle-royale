@@ -15,6 +15,8 @@ import { PanoramaModal } from './components/UI/PanoramaModal';
 import { ImpactParticles } from './components/Effects/Particles';
 import { LootType } from './components/Inventory/LootItem';
 import { YEMEN_GOVERNORATES, Governorate } from './data/yemenGovernorates';
+import { Weapon, WEAPONS, TacticalUpgrade, UPGRADES } from './data/weapons';
+import { WeaponSelector } from './components/Combat/WeaponSelector';
 import { sounds } from './utils/soundEffects';
 import { 
   LucideRefreshCcw, 
@@ -67,6 +69,13 @@ export default function App() {
   const [damageModifier, setDamageModifier] = useState(1);
   const [isShieldActive, setIsShieldActive] = useState(false);
   const [panorama, setPanorama] = useState<{isOpen: boolean, image: string, title: string}>({isOpen: false, image: '', title: ''});
+
+  // Weapon Arsenal & Tactical Upgrades State
+  const [currentWeapon, setCurrentWeapon] = useState<Weapon>(WEAPONS.assault);
+  const [unlockedWeapons, setUnlockedWeapons] = useState<string[]>(['assault', 'sniper']);
+  const [activeUpgrades, setActiveUpgrades] = useState<TacticalUpgrade[]>([]);
+  const [ammo, setAmmo] = useState<number>(WEAPONS.assault.magazineSize);
+  const isReloading = useRef(false);
 
   // Particles state
   const [particles, setParticles] = useState<Array<{ id: string, pos: [number, number, number], color: string }>>([]);
@@ -203,6 +212,7 @@ export default function App() {
   }, [addLog]);
 
   const handleStartGame = useCallback((fighter: typeof FIGHTERS[0], level: typeof COMBAT_LEVELS[0]) => {
+    console.log('App: handleStartGame called', fighter.name, level.name);
     setSelectedFighter(fighter);
     setSelectedLevel(level);
     setShowFighterModal(false);
@@ -213,6 +223,80 @@ export default function App() {
     setTargetResetKey(prev => prev + 1);
     addLog(`⚔️ بدأت المعركة بنجاح!`, 'info');
   }, [addLog]);
+
+  // Calculate current weapon's maximum ammo considering extended magazine upgrade
+  const isExtendedDrum = activeUpgrades.some(u => u.id === 'extended_drum');
+  const maxAmmo = isExtendedDrum ? currentWeapon.magazineSize * 2 : currentWeapon.magazineSize;
+
+  const handleConsumeAmmo = useCallback(() => {
+    if (isReloading.current) return false;
+
+    if (ammo <= 1) {
+      setAmmo(0);
+      isReloading.current = true;
+      setNotification({ message: '⚠️ نفدت الذخيرة! جاري إعادة التلقيم...', type: 'warning' });
+      setTimeout(() => {
+        setAmmo(maxAmmo);
+        isReloading.current = false;
+        setNotification({ message: '✅ تم تلقيم السلاح بنجاح!', type: 'info' });
+        setTimeout(() => setNotification(null), 1200);
+      }, 1500);
+      return false;
+    }
+
+    setAmmo(prev => prev - 1);
+    return true;
+  }, [ammo, maxAmmo]);
+
+  const handleSelectWeapon = useCallback((weapon: Weapon) => {
+    setCurrentWeapon(weapon);
+    const capacity = isExtendedDrum ? weapon.magazineSize * 2 : weapon.magazineSize;
+    setAmmo(capacity);
+    addLog(`🔫 تم تجهيز: ${weapon.name}`, 'info');
+  }, [isExtendedDrum, addLog]);
+
+  const handleClaimAirdrop = useCallback((crateId: string, rewardType: 'weapon' | 'upgrade') => {
+    if (rewardType === 'weapon') {
+      const locked = ['shotgun', 'heavy'].filter(w => !unlockedWeapons.includes(w));
+      if (locked.length > 0) {
+        const toUnlock = locked[0];
+        setUnlockedWeapons(prev => [...prev, toUnlock]);
+        const wObj = WEAPONS[toUnlock];
+        setCurrentWeapon(wObj);
+        setAmmo(wObj.magazineSize);
+        addLog(`🎁 إسقاط جوي: تم فتح [${wObj.name}]!`, 'loot');
+        setNotification({ message: `🎁 سلاح جديد مفتوح: ${wObj.name}`, type: 'success' });
+        setTimeout(() => setNotification(null), 2500);
+        return;
+      }
+    }
+
+    // Otherwise give a Tactical Upgrade
+    const unacquired = UPGRADES.filter(u => !activeUpgrades.some(au => au.id === u.id));
+    if (unacquired.length > 0) {
+      const newUp = unacquired[Math.floor(Math.random() * unacquired.length)];
+      setActiveUpgrades(prev => [...prev, newUp]);
+      
+      if (newUp.type === 'damage') {
+        setDamageModifier(prev => prev * newUp.value);
+      } else if (newUp.type === 'speed') {
+        setSpeedModifier(prev => prev * newUp.value);
+      } else if (newUp.type === 'shield') {
+        setPlayerHealth(prev => Math.min(selectedFighter.hp + 50, prev + newUp.value));
+      } else if (newUp.type === 'ammo') {
+        setAmmo(prev => prev * 2);
+      }
+
+      addLog(`⚡ ترقية تكتيكية: ${newUp.name}!`, 'loot');
+      setNotification({ message: `⚡ ترقية: ${newUp.name} (${newUp.description})`, type: 'success' });
+      setTimeout(() => setNotification(null), 3000);
+    } else {
+      // Bonus Full Ammo & Health
+      setAmmo(maxAmmo);
+      setPlayerHealth(selectedFighter.hp);
+      addLog(`✨ إسقاط جوي: تم ملء الصحة والذخيرة بالكامل!`, 'loot');
+    }
+  }, [unlockedWeapons, activeUpgrades, maxAmmo, selectedFighter.hp, addLog]);
 
   const handleHitEnemy = useCallback((enemyName: string, damage: number, hitPos?: [number, number, number]) => {
     if (hitPos) {
@@ -330,212 +414,259 @@ export default function App() {
       )}
 
       {/* Fighter Selection Modal */}
-      {!isLoading && <FighterSelectModal isOpen={showFighterModal} onStartGame={handleStartGame} />}
-      <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
+      {!isLoading && (
+        <>
+          <FighterSelectModal isOpen={showFighterModal} onStartGame={handleStartGame} />
+          <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
 
-      {isDamageFlash && (
-        <div className="absolute inset-0 z-30 pointer-events-none bg-rose-600/25 ring-8 ring-inset ring-rose-500 animate-pulse" />
-      )}
+          {isDamageFlash && (
+            <div className="absolute inset-0 z-30 pointer-events-none bg-rose-600/25 ring-8 ring-inset ring-rose-500 animate-pulse" />
+          )}
 
-      {/* Game Over / Victory Modal */}
-      {(isVictory || playerHealth <= 0) && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 pointer-events-auto">
-          <div className="glass-panel max-w-sm w-full p-8 rounded-[2.5rem] text-center flex flex-col gap-6 border-2 border-amber-500/40 shadow-2xl shadow-amber-500/10">
-            <div className="flex justify-center">
-              {isVictory ? (
-                <LucideTrophy className="w-20 h-20 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] animate-bounce" />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-rose-500/20 border-2 border-rose-500 flex items-center justify-center text-rose-500">
-                  <LucideXCircle className="w-12 h-12" />
+          {/* Game Over / Victory Modal */}
+          {(isVictory || playerHealth <= 0) && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 pointer-events-auto">
+              <div className="glass-panel max-w-sm w-full p-8 rounded-[2.5rem] text-center flex flex-col gap-6 border-2 border-amber-500/40 shadow-2xl shadow-amber-500/10">
+                <div className="flex justify-center">
+                  {isVictory ? (
+                    <LucideTrophy className="w-20 h-20 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)] animate-bounce" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-rose-500/20 border-2 border-rose-500 flex items-center justify-center text-rose-500">
+                      <LucideXCircle className="w-12 h-12" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <h2 className="text-3xl font-black text-amber-400">
-                {isVictory ? 'نصر يماني مؤزر!' : 'انتهت المعركة'}
-              </h2>
-              <p className="text-slate-300 text-sm font-bold">
-                {isVictory 
-                  ? `لقد طهرت ${currentGov.name} من الغزاة بنجاح!` 
-                  : `لقد قاتلت ببسالة في ${currentGov.name}، حاول مرة أخرى.`}
-              </p>
-            </div>
+                
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-amber-400">
+                    {isVictory ? 'نصر يماني مؤزر!' : 'انتهت المعركة'}
+                  </h2>
+                  <p className="text-slate-300 text-sm font-bold">
+                    {isVictory 
+                      ? `لقد طهرت ${currentGov.name} من الغزاة بنجاح!` 
+                      : `لقد قاتلت ببسالة في ${currentGov.name}، حاول مرة أخرى.`}
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="py-3 bg-slate-900/60 rounded-2xl border border-white/5">
-                <span className="text-[10px] text-slate-400 block font-black uppercase mb-1">النقاط المكتسبة</span>
-                <span className="text-xl font-black text-amber-400">{defeatedCount * 100}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="py-3 bg-slate-900/60 rounded-2xl border border-white/5">
+                    <span className="text-[10px] text-slate-400 block font-black uppercase mb-1">النقاط المكتسبة</span>
+                    <span className="text-xl font-black text-amber-400">{defeatedCount * 100}</span>
+                  </div>
+                  <div className="py-3 bg-slate-900/60 rounded-2xl border border-white/5">
+                    <span className="text-[10px] text-slate-400 block font-black uppercase mb-1">الغنائم</span>
+                    <span className="text-xl font-black text-emerald-400">{inventory.length} / 5</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleResetTargets} 
+                  className="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black rounded-2xl text-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3"
+                >
+                  <span>{isVictory ? 'معركة جديدة ⚔️' : 'إعادة المحاولة 🔄'}</span>
+                </button>
+
+                {!user && (
+                  <p className="text-[10px] text-white/40 font-bold">سجل دخولك لحفظ نتائجك في لوحة المتصدرين</p>
+                )}
               </div>
-              <div className="py-3 bg-slate-900/60 rounded-2xl border border-white/5">
-                <span className="text-[10px] text-slate-400 block font-black uppercase mb-1">الغنائم</span>
-                <span className="text-xl font-black text-emerald-400">{inventory.length} / 5</span>
-              </div>
             </div>
+          )}
 
-            <button 
-              onClick={handleResetTargets} 
-              className="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black rounded-2xl text-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3"
-            >
-              <span>{isVictory ? 'معركة جديدة ⚔️' : 'إعادة المحاولة 🔄'}</span>
-            </button>
-
-            {!user && (
-              <p className="text-[10px] text-white/40 font-bold">سجل دخولك لحفظ نتائجك في لوحة المتصدرين</p>
-            )}
+          {/* Kill Feed / Event Logs */}
+          <div className="absolute top-24 right-5 z-40 space-y-2 w-64 pointer-events-none">
+            {logs.map(log => (
+              <div key={log.id} className={`px-4 py-2 rounded-xl text-[10px] font-bold text-right border-r-4 shadow-lg animate-in slide-in-from-right duration-300 backdrop-blur-md ${
+                log.type === 'kill' ? 'bg-rose-500/20 border-rose-500 text-rose-300' :
+                log.type === 'loot' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300' :
+                'bg-slate-950/60 border-amber-500 text-white'
+              }`}>
+                {log.msg}
+              </div>
+            ))}
           </div>
-        </div>
+
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <div className="relative w-8 h-8 flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-amber-400 shadow-md shadow-amber-400/80" />
+              <div className="absolute w-5 h-[1.5px] bg-white/60 -left-6" />
+              <div className="absolute w-5 h-[1.5px] bg-white/60 -right-6" />
+              <div className="absolute h-5 w-[1.5px] bg-white/60 -top-6" />
+              <div className="absolute h-5 w-[1.5px] bg-white/60 -bottom-6" />
+            </div>
+          </div>
+          
+          <Canvas shadows camera={{ position: [0, 5, 10], fov: 50 }}>
+            <World 
+              key={targetResetKey} 
+              playerRef={playerRef} 
+              onPickup={handlePickup} 
+              onAttackPlayer={(amt) => handleTakeDamage(amt)}
+              onZoneDamage={(amt) => handleTakeDamage(amt, true)}
+              enemyCount={selectedLevel.enemyCount}
+              onEnemyDie={handleEnemyDie}
+              onClaimAirdrop={handleClaimAirdrop}
+            />
+            <Player 
+              ref={playerRef}
+              joystickInput={joystickInput} 
+              isShooting={isShooting} 
+              cameraRotation={cameraRotation}
+              viewMode={viewMode}
+              speedModifier={speedModifier}
+              damageModifier={damageModifier}
+              activeWeapon={currentWeapon}
+              onConsumeAmmo={handleConsumeAmmo}
+              onPositionChange={handlePositionChange}
+              onHitEnemy={handleHitEnemy}
+              onSpawnParticles={spawnParticles}
+            />
+            {particles.map((p) => (
+              <ImpactParticles key={p.id} position={p.pos} color={p.color} onFinish={() => removeParticles(p.id)} />
+            ))}
+          </Canvas>
+        </>
       )}
 
-      {/* Kill Feed / Event Logs */}
-      <div className="absolute top-24 right-5 z-40 space-y-2 w-64 pointer-events-none">
-        {logs.map(log => (
-          <div key={log.id} className={`px-4 py-2 rounded-xl text-[10px] font-bold text-right border-r-4 shadow-lg animate-in slide-in-from-right duration-300 backdrop-blur-md ${
-            log.type === 'kill' ? 'bg-rose-500/20 border-rose-500 text-rose-300' :
-            log.type === 'loot' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300' :
-            'bg-slate-950/60 border-amber-500 text-white'
-          }`}>
-            {log.msg}
-          </div>
-        ))}
-      </div>
+      {/* Gameplay HUD & Touch Controls - Only visible during active battle */}
+      {!isLoading && !showFighterModal && (
+        <>
+          <CameraTouchZone onRotate={handleCameraRotate} />
+          <Compass rotationX={cameraRotation.x} />
+          <YemenMapRadar
+            playerX={playerCoords.x}
+            playerZ={playerCoords.z}
+            currentGov={currentGov}
+            exploredGovs={exploredGovs}
+            onTeleportToGov={handleTeleportToGov}
+          />
 
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-        <div className="relative w-8 h-8 flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-amber-400 shadow-md shadow-amber-400/80" />
-          <div className="absolute w-5 h-[1.5px] bg-white/60 -left-6" />
-          <div className="absolute w-5 h-[1.5px] bg-white/60 -right-6" />
-          <div className="absolute h-5 w-[1.5px] bg-white/60 -top-6" />
-          <div className="absolute h-5 w-[1.5px] bg-white/60 -bottom-6" />
-        </div>
-      </div>
+          {/* Top UI Overlay */}
+          <div className="absolute top-0 left-0 right-0 z-40 p-3 sm:p-4 w-full max-w-md mx-auto flex flex-col gap-2.5 pointer-events-none">
+            
+            {/* Region Selector & Fighter Selector Header */}
+            <div className="glass-panel rounded-2xl p-2.5 sm:p-3 flex items-center justify-between pointer-events-auto">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <LucideMapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-amber-400 font-black block leading-none mb-1">خريطة اليمن 🇾🇪</span>
+                  <select 
+                    value={currentGov.id} 
+                    onChange={(e) => {
+                      const gov = YEMEN_GOVERNORATES.find(g => g.id === e.target.value);
+                      if (gov) handleTeleportToGov(gov);
+                    }}
+                    className="bg-slate-800/80 text-white font-bold text-xs rounded-lg px-2 py-1 border border-slate-600 outline-none focus:border-amber-400 pointer-events-auto"
+                  >
+                    {YEMEN_GOVERNORATES.map(gov => (
+                      <option key={gov.id} value={gov.id}>{gov.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-      <Canvas shadows camera={{ position: [0, 5, 10], fov: 50 }}>
-        <World 
-          key={targetResetKey} 
-          playerRef={playerRef} 
-          onPickup={handlePickup} 
-          onAttackPlayer={(amt) => handleTakeDamage(amt)}
-          onZoneDamage={(amt) => handleTakeDamage(amt, true)}
-          enemyCount={selectedLevel.enemyCount}
-          onEnemyDie={handleEnemyDie}
-        />
-        <Player 
-          ref={playerRef}
-          joystickInput={joystickInput} 
-          isShooting={isShooting} 
-          cameraRotation={cameraRotation}
-          viewMode={viewMode}
-          speedModifier={speedModifier}
-          damageModifier={damageModifier}
-          onPositionChange={handlePositionChange}
-          onHitEnemy={handleHitEnemy}
-          onSpawnParticles={spawnParticles}
-        />
-        {particles.map((p) => (
-          <ImpactParticles key={p.id} position={p.pos} color={p.color} onFinish={() => removeParticles(p.id)} />
-        ))}
-      </Canvas>
-
-      <CameraTouchZone onRotate={handleCameraRotate} />
-      <Compass rotationX={cameraRotation.x} />
-      <YemenMapRadar
-        playerX={playerCoords.x}
-        playerZ={playerCoords.z}
-        currentGov={currentGov}
-        exploredGovs={exploredGovs}
-        onTeleportToGov={handleTeleportToGov}
-      />
-
-      {/* Top UI Overlay (Aligned with user snippet) */}
-      <div className="absolute top-0 left-0 right-0 z-40 p-4 w-full max-w-md mx-auto flex flex-col gap-3 pointer-events-none">
-        
-        {/* Region Selector Header */}
-        <div className="glass-panel rounded-2xl p-3 flex items-center justify-between pointer-events-auto">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <LucideMapPin className="w-6 h-6" />
+              {/* Fighter and Level Switcher */}
+              <div className="flex items-center gap-2 text-right">
+                <button
+                  onClick={() => setShowFighterModal(true)}
+                  className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 rounded-xl text-[10px] font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                  title="تغيير البطل والمستوى"
+                >
+                  <LucideSword className="w-3.5 h-3.5" />
+                  <span>{selectedFighter.icon} تغيير</span>
+                </button>
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-bold leading-tight">النقاط</span>
+                  <span id="scoreText" className="text-lg font-black text-amber-400 leading-tight">
+                    {defeatedCount * 100}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] text-amber-400 font-black block leading-none mb-1">خريطة اليمن 🇾🇪</span>
-              <select 
-                value={currentGov.id} 
-                onChange={(e) => {
-                  const gov = YEMEN_GOVERNORATES.find(g => g.id === e.target.value);
-                  if (gov) handleTeleportToGov(gov);
-                }}
-                className="bg-slate-800/80 text-white font-bold text-xs rounded-lg px-2 py-1 border border-slate-600 outline-none focus:border-amber-400 pointer-events-auto"
-              >
-                {YEMEN_GOVERNORATES.map(gov => (
-                  <option key={gov.id} value={gov.id}>{gov.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 block font-bold">النقاط</span>
-            <span id="scoreText" className="text-xl font-black text-amber-400">
-              {defeatedCount * 100}
-            </span>
-          </div>
-        </div>
 
-        {/* Health Bar (Aligned with snippet) */}
-        <div className="glass-panel rounded-xl p-3 pointer-events-auto">
-          <div className="flex justify-between items-center mb-1 text-[11px] font-black">
-            <span className="text-emerald-400 uppercase">صحة المحارب</span>
-            <span id="healthText" className="text-white">{Math.round(playerHealth)} / {selectedFighter.hp}</span>
-          </div>
-          <div className="w-full bg-slate-950/50 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-700/50">
-            <div 
-              className="bg-gradient-to-r from-emerald-600 to-teal-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
-              style={{ width: `${(playerHealth / selectedFighter.hp) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Inventory Bar (Aligned with snippet) */}
-        <div className="glass-panel rounded-xl p-3 flex items-center justify-between pointer-events-auto cursor-pointer" onClick={() => setShowInventoryModal(true)}>
-          <div className="flex items-center gap-2">
-            <LucideBackpack className="w-5 h-5 text-amber-400" />
-            <span className="text-[11px] font-black text-slate-200">حقيبة الغنائم</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-black text-amber-400">{inventory.length} / 5</span>
-            <div className="flex gap-1">
-              {[0, 1, 2, 3, 4].map(i => (
+            {/* Health Bar */}
+            <div className="glass-panel rounded-xl p-2.5 sm:p-3 pointer-events-auto">
+              <div className="flex justify-between items-center mb-1 text-[11px] font-black">
+                <span className="text-emerald-400 uppercase flex items-center gap-1">
+                  <span>{selectedFighter.icon}</span>
+                  <span>صحة {selectedFighter.name}</span>
+                </span>
+                <span id="healthText" className="text-white font-mono">{Math.round(playerHealth)} / {selectedFighter.hp}</span>
+              </div>
+              <div className="w-full bg-slate-950/50 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700/50">
                 <div 
-                  key={i} 
-                  className={`w-3 h-3 rounded-full border transition-all duration-300 ${
-                    i < inventory.length 
-                      ? 'bg-amber-500 border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]' 
-                      : 'bg-slate-700/50 border-slate-600'
-                  }`}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
+                  style={{ width: `${(playerHealth / selectedFighter.hp) * 100}%` }}
                 />
-              ))}
+              </div>
+            </div>
+
+            {/* Inventory Bar */}
+            <div className="glass-panel rounded-xl p-2.5 sm:p-3 flex items-center justify-between pointer-events-auto cursor-pointer" onClick={() => setShowInventoryModal(true)}>
+              <div className="flex items-center gap-2">
+                <LucideBackpack className="w-4 h-4 text-amber-400" />
+                <span className="text-[11px] font-black text-slate-200">حقيبة الغنائم</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-black text-amber-400">{inventory.length} / 5</span>
+                <div className="flex gap-1">
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <div 
+                      key={i} 
+                      className={`w-2.5 h-2.5 rounded-full border transition-all duration-300 ${
+                        i < inventory.length 
+                          ? 'bg-amber-500 border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]' 
+                          : 'bg-slate-700/50 border-slate-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Row */}
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <button 
+                onClick={() => setViewMode(prev => prev === 'FPS' ? 'TPS' : 'FPS')} 
+                className="flex-1 glass-panel py-2 rounded-xl text-white font-black text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all border-indigo-500/30"
+              >
+                {viewMode === 'FPS' ? <LucideUser className="w-3.5 h-3.5 text-indigo-400" /> : <LucideEye className="w-3.5 h-3.5 text-indigo-400" />}
+                {viewMode === 'FPS' ? 'منظور الشخص الثالث' : 'منظور الشخص الأول'}
+              </button>
+              <button 
+                onClick={() => setShowLeaderboard(true)} 
+                className="glass-panel p-2 rounded-xl text-amber-400 active:scale-95 transition-all"
+                title="لوحة المتصدرين"
+              >
+                <LucideTrophy className="w-4 h-4" />
+              </button>
+              <AuthSection user={user} />
+              <PWAInstallButton />
             </div>
           </div>
-        </div>
 
-        {/* Action Row */}
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <button 
-            onClick={() => setViewMode(prev => prev === 'FPS' ? 'TPS' : 'FPS')} 
-            className="flex-1 glass-panel py-2 rounded-xl text-white font-black text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all border-indigo-500/30"
-          >
-            {viewMode === 'FPS' ? <LucideUser className="w-4 h-4 text-indigo-400" /> : <LucideEye className="w-4 h-4 text-indigo-400" />}
-            {viewMode === 'FPS' ? 'منظور الشخص الثالث' : 'منظور الشخص الأول'}
-          </button>
-          <button 
-            onClick={() => setShowLeaderboard(true)} 
-            className="glass-panel p-2 rounded-xl text-amber-400 active:scale-95 transition-all"
-          >
-            <LucideTrophy className="w-5 h-5" />
-          </button>
-          <AuthSection user={user} />
-          <PWAInstallButton />
-        </div>
-      </div>
+          <Joystick onMove={handleJoystickMove} />
+          <ShootButton onShootStateChange={handleShootStateChange} />
+          {selectedFighter && (
+            <AbilityButton 
+              ability={selectedFighter.ability}
+              onActivate={handleActivateAbility}
+              cooldown={15}
+            />
+          )}
+          <WeaponSelector 
+            currentWeapon={currentWeapon}
+            unlockedWeapons={unlockedWeapons}
+            activeUpgrades={activeUpgrades}
+            onSelectWeapon={handleSelectWeapon}
+            currentAmmo={ammo}
+            maxAmmo={maxAmmo}
+          />
+        </>
+      )}
+
 
       {showMissionCard && (
         <div className="fixed top-20 right-3 left-3 sm:left-auto sm:right-5 z-40 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">

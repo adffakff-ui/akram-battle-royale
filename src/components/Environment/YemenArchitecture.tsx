@@ -308,3 +308,43 @@ export const GovernorateMarker: React.FC<{
     </group>
   );
 };
+
+// 8. تشكيلات صخرية بركانية (Yemen Rock Formations)
+export const YemenRockFormation: React.FC<{
+  position: [number, number, number];
+  scale?: number;
+}> = ({ position, scale = 1 }) => {
+  return (
+    <group position={position} scale={scale}>
+      <mesh castShadow receiveShadow>
+        <dodecahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color="#57534e" roughness={0.9} />
+      </mesh>
+      <mesh castShadow receiveShadow position={[0.6, 0.5, 0.3]} scale={0.6}>
+        <dodecahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color="#44403c" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+};
+
+// 9. أشجار النخيل اليمنية (Yemen Palm Tree)
+export const YemenPalmTree: React.FC<{
+  position: [number, number, number];
+  scale?: number;
+}> = ({ position, scale = 1 }) => {
+  return (
+    <group position={position} scale={scale}>
+      {/* الجذع */}
+      <mesh castShadow position={[0, 1.5, 0]}>
+        <cylinderGeometry args={[0.2, 0.3, 3, 8]} />
+        <meshStandardMaterial color="#78350f" roughness={0.9} />
+      </mesh>
+      {/* سعف النخيل */}
+      <mesh castShadow position={[0, 3, 0]}>
+        <coneGeometry args={[1.5, 1, 8]} />
+        <meshStandardMaterial color="#166534" roughness={0.8} />
+      </mesh>
+    </group>
+  );
+};

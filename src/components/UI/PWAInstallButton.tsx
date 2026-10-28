@@ -60,7 +60,7 @@ export const PWAInstallButton: React.FC = () => {
                   className="mt-2.5 inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg transition-colors text-xs"
                 >
                   <LucideDownload className="w-3.5 h-3.5" />
-                  <span>تحميل ملف BattleRoyale.apk (502 KB)</span>
+                  <span>تحميل ملف BattleRoyale.apk (3.8 MB - جاهز وموقّع)</span>
                 </a>
               </div>
 

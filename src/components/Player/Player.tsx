@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { Weapon, WEAPONS } from '../../data/weapons';
 
 interface PlayerProps {
   joystickInput: { x: number; y: number };
@@ -9,9 +10,11 @@ interface PlayerProps {
   viewMode: 'FPS' | 'TPS';
   speedModifier?: number;
   damageModifier?: number;
+  activeWeapon?: Weapon;
   onPositionChange?: (x: number, z: number) => void;
   onHitEnemy?: (enemyName: string, damage: number, hitPos?: [number, number, number]) => void;
   onSpawnParticles?: (pos: [number, number, number], color: string) => void;
+  onConsumeAmmo?: () => boolean;
 }
 
 export const Player = forwardRef<THREE.Group, PlayerProps>(({ 
@@ -21,9 +24,11 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   viewMode,
   speedModifier,
   damageModifier,
+  activeWeapon = WEAPONS.assault,
   onPositionChange,
   onHitEnemy,
-  onSpawnParticles
+  onSpawnParticles,
+  onConsumeAmmo
 }, ref) => {
   const meshRef = useRef<THREE.Group>(null);
   const playerBodyRef = useRef<THREE.Group>(null);
@@ -68,8 +73,8 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   const playerSpeed = 8.0 * (speedModifier || 1.0);
   const gravityValue = -18.0;
   const rotationSmoothing = 0.15;
-  const fireRate = 0.15;
-  const range = 100;
+  const fireRate = activeWeapon.fireRate;
+  const range = activeWeapon.range;
 
   // Camera Settings
   const cameraOffsetTPS = useMemo(() => new THREE.Vector3(0, 2.5, 8), []);
@@ -153,51 +158,68 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
     if (activeShooting) {
       const now = state.clock.getElapsedTime();
       if (now - lastFireTime.current >= fireRate) {
+        // Check ammo
+        if (onConsumeAmmo && !onConsumeAmmo()) {
+          return;
+        }
+
         lastFireTime.current = now;
         
         // Muzzle flash visual
         if (muzzleFlashRef.current) {
           muzzleFlashRef.current.visible = true;
           muzzleFlashRef.current.getWorldPosition(_muzzlePos);
-          onSpawnParticles?.([_muzzlePos.x, _muzzlePos.y, _muzzlePos.z], "#fbbf24");
+          onSpawnParticles?.([_muzzlePos.x, _muzzlePos.y, _muzzlePos.z], activeWeapon.color);
           setTimeout(() => {
             if (muzzleFlashRef.current) muzzleFlashRef.current.visible = false;
-          }, 50);
+          }, 60);
         }
 
-        const damageAmount = 25 * (damageModifier || 1.0);
+        const baseDamage = activeWeapon.damage * (damageModifier || 1.0);
+        const pelletsCount = activeWeapon.pellets || 1;
+        const spreadAmount = activeWeapon.spread || 0;
 
         // Origin and direction from Camera
         state.camera.getWorldPosition(_shootOrigin);
-        state.camera.getWorldDirection(_shootDir);
 
-        _raycaster.set(_shootOrigin, _shootDir);
-        _raycaster.far = range;
-        
-        const intersects = _raycaster.intersectObjects(state.scene.children, true);
-        
-        for (const hit of intersects) {
-          let isSelf = false;
-          let current: THREE.Object3D | null = hit.object;
-          while (current) {
-            if (current === meshRef.current) {
-              isSelf = true;
-              break;
-            }
-            current = current.parent;
-          }
-          if (isSelf) continue;
+        for (let p = 0; p < pelletsCount; p++) {
+          state.camera.getWorldDirection(_shootDir);
 
-          let targetObj: THREE.Object3D | null = hit.object;
-          while (targetObj) {
-            if (targetObj.userData && targetObj.userData.takeDamage) {
-              targetObj.userData.takeDamage(damageAmount);
-              onHitEnemy?.(targetObj.name || 'عدو', damageAmount, [hit.point.x, hit.point.y, hit.point.z]);
-              return;
-            }
-            targetObj = targetObj.parent;
+          if (spreadAmount > 0) {
+            _shootDir.x += (Math.random() - 0.5) * spreadAmount;
+            _shootDir.y += (Math.random() - 0.5) * spreadAmount;
+            _shootDir.z += (Math.random() - 0.5) * spreadAmount;
+            _shootDir.normalize();
           }
-          break; 
+
+          _raycaster.set(_shootOrigin, _shootDir);
+          _raycaster.far = range;
+          
+          const intersects = _raycaster.intersectObjects(state.scene.children, true);
+          
+          for (const hit of intersects) {
+            let isSelf = false;
+            let current: THREE.Object3D | null = hit.object;
+            while (current) {
+              if (current === meshRef.current) {
+                isSelf = true;
+                break;
+              }
+              current = current.parent;
+            }
+            if (isSelf) continue;
+
+            let targetObj: THREE.Object3D | null = hit.object;
+            while (targetObj) {
+              if (targetObj.userData && targetObj.userData.takeDamage) {
+                targetObj.userData.takeDamage(baseDamage);
+                onHitEnemy?.(targetObj.name || 'عدو', baseDamage, [hit.point.x, hit.point.y, hit.point.z]);
+                return;
+              }
+              targetObj = targetObj.parent;
+            }
+            break; 
+          }
         }
       }
     }

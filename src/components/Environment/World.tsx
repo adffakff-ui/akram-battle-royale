@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Grid, Environment, ContactShadows, Sky, Stars } from '@react-three/drei';
 import { Target, EnemyType } from '../AI/Target';
 import { LootItem, LootType } from '../Inventory/LootItem';
@@ -11,10 +11,13 @@ import {
   DragonBloodTree, 
   SirahFortress, 
   ShaharahBridge, 
-  GovernorateMarker 
+  GovernorateMarker,
+  YemenRockFormation,
+  YemenPalmTree
 } from './YemenArchitecture';
 import * as THREE from 'three';
 import { WeatherEffects, WeatherType } from '../Effects/WeatherEffects';
+import { AirdropCrate } from './AirdropCrate';
 
 interface WorldProps {
   playerRef: React.RefObject<THREE.Group | null>;
@@ -23,6 +26,7 @@ interface WorldProps {
   onZoneDamage: (amount: number) => void;
   enemyCount?: number;
   onEnemyDie?: (name: string) => void;
+  onClaimAirdrop?: (id: string, rewardType: 'weapon' | 'upgrade') => void;
 }
 
 export const World: React.FC<WorldProps> = ({ 
@@ -31,7 +35,8 @@ export const World: React.FC<WorldProps> = ({
   onAttackPlayer, 
   onZoneDamage,
   enemyCount = 12,
-  onEnemyDie
+  onEnemyDie,
+  onClaimAirdrop
 }) => {
   const weatherTypes: WeatherType[] = ['clear', 'fog', 'rain', 'sandstorm'];
   const [weather] = useState<WeatherType>(weatherTypes[Math.floor(Math.random() * weatherTypes.length)]);
@@ -109,10 +114,11 @@ export const World: React.FC<WorldProps> = ({
       
       {/* Decorative Environmental Clutter */}
       {clutter.map((c, i) => (
-        <mesh key={i} position={c.pos} scale={c.scale} castShadow receiveShadow>
-          <dodecahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color={c.color} roughness={0.8} />
-        </mesh>
+        i % 3 === 0 ? (
+          <YemenRockFormation key={i} position={c.pos} scale={c.scale * 0.5} />
+        ) : (
+          <YemenPalmTree key={i} position={c.pos} scale={c.scale * 0.3} />
+        )
       ))}
 
       {/* Grid for Tactical Awareness */}
@@ -181,6 +187,16 @@ export const World: React.FC<WorldProps> = ({
       <LootItem position={[5, 0.5, 5]} name="إسعافات أولية" type={LootType.HealthKit} value={40} playerRef={playerRef} onPickup={onPickup} />
       <LootItem position={[25, 0.5, -15]} name="ذخيرة ثقيلة" type={LootType.Ammo} value={50} playerRef={playerRef} onPickup={onPickup} />
       <LootItem position={[55, 0.5, -10]} name="درع واقي" type={LootType.Armor} value={50} playerRef={playerRef} onPickup={onPickup} />
+
+      {/* 7. Tactical Airdrop Supply Crates (Weapons & Upgrades) */}
+      {onClaimAirdrop && (
+        <>
+          <AirdropCrate id="crate_sanaa" position={[15, 0, 8]} playerRef={playerRef} onClaim={onClaimAirdrop} />
+          <AirdropCrate id="crate_marib" position={[35, 0, -25]} playerRef={playerRef} onClaim={onClaimAirdrop} />
+          <AirdropCrate id="crate_aden" position={[-15, 0, 35]} playerRef={playerRef} onClaim={onClaimAirdrop} />
+          <AirdropCrate id="crate_hadramout" position={[60, 0, 15]} playerRef={playerRef} onClaim={onClaimAirdrop} />
+        </>
+      )}
 
       <ContactShadows opacity={0.4} scale={50} blur={2.5} far={10} resolution={1024} color="#000000" />
     </>

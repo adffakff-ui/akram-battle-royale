@@ -100,16 +100,24 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
         }
     }
 
-    // Smart AI Behavior: Low Health Retreat & Cover Seeking
-    if (health <= retreatHealthThreshold && distance < 12) {
-      // Retreat backwards / sideways away from player to find cover
-      const awayDir = new THREE.Vector3().subVectors(targetPos, playerPos).normalize();
-      awayDir.y = 0;
-      // Add slight perpendicular strafe for tactical cover maneuvering
-      const strafe = new THREE.Vector3(-awayDir.z, 0, awayDir.x).multiplyScalar(Math.sin(state.clock.getElapsedTime() * 3) * 1.5);
-      const retreatMove = awayDir.add(strafe).normalize().multiplyScalar(moveSpeed * 1.2 * delta);
-      meshRef.current.position.add(retreatMove);
-      return;
+    // Smart AI Behavior: Low Health Retreat & Cover Seeking or Tactical Flanking
+    if (health <= retreatHealthThreshold) {
+      // Seek cover if not already doing so
+      if (!targetCover) {
+          const cover = findNearestCover();
+          if (cover) setTargetCover(cover);
+      }
+      
+      // If no cover, or still close to player, strafe aggressively (flank)
+      if (!targetCover || distance < 8) {
+          const awayDir = new THREE.Vector3().subVectors(targetPos, playerPos).normalize();
+          awayDir.y = 0;
+          // Tactical strafe (flank)
+          const strafe = new THREE.Vector3(-awayDir.z, 0, awayDir.x).multiplyScalar(Math.sin(state.clock.getElapsedTime() * 4) * 3.0);
+          const move = awayDir.add(strafe).normalize().multiplyScalar(moveSpeed * 1.5 * delta);
+          meshRef.current.position.add(move);
+          return;
+      }
     }
 
     // 1. Detection & Chasing
