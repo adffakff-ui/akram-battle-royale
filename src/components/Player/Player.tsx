@@ -7,6 +7,8 @@ interface PlayerProps {
   isShooting: boolean;
   cameraRotation: { x: number; y: number };
   viewMode: 'FPS' | 'TPS';
+  speedModifier?: number;
+  damageModifier?: number;
   onPositionChange?: (x: number, z: number) => void;
   onHitEnemy?: (enemyName: string, damage: number, hitPos?: [number, number, number]) => void;
   onSpawnParticles?: (pos: [number, number, number], color: string) => void;
@@ -17,6 +19,8 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   isShooting, 
   cameraRotation, 
   viewMode,
+  speedModifier,
+  damageModifier,
   onPositionChange,
   onHitEnemy,
   onSpawnParticles
@@ -61,7 +65,7 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   }, []);
 
   // Constants
-  const playerSpeed = 8.0;
+  const playerSpeed = 8.0 * (speedModifier || 1.0);
   const gravityValue = -18.0;
   const rotationSmoothing = 0.15;
   const fireRate = 0.15;
@@ -161,7 +165,7 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
           }, 50);
         }
 
-        const damageAmount = 25;
+        const damageAmount = 25 * (damageModifier || 1.0);
 
         // Origin and direction from Camera
         state.camera.getWorldPosition(_shootOrigin);

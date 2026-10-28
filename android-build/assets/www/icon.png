@@ -1,0 +1,622 @@
+```html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>لعبة محارب اليمن</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #0d1117;
+            color: #ffffff;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+        /* Canvas Styling */
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle, #1a2233 0%, #0d1117 100%);
+        }
+        /* Glassmorphism UI */
+        .glass-panel {
+            background: rgba(16, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        /* Touch Controllers */
+        .touch-btn {
+            background: radial-gradient(circle, rgba(225, 29, 72, 0.4) 0%, rgba(159, 18, 57, 0.8) 100%);
+            border: 2px solid #f43f5e;
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        .touch-btn:active {
+            transform: scale(0.92);
+            background: radial-gradient(circle, rgba(244, 63, 94, 0.6) 0%, rgba(225, 29, 72, 0.9) 100%);
+        }
+        .joystick-base {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .joystick-thumb {
+            background: radial-gradient(circle, #94a3b8 0%, #475569 100%);
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between h-screen w-screen overflow-hidden">
+
+    <!-- Game World Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top UI Overlay -->
+    <div class="relative z-10 p-4 w-full max-w-md mx-auto flex flex-col gap-3 pointer-events-none">
+        
+        <!-- Region Selector Header -->
+        <div class="glass-panel rounded-2xl p-3 flex items-center justify-between pointer-events-auto">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <div>
+                    <span class="text-xs text-amber-400 font-bold block">خريطة اليمن 🇾🇪</span>
+                    <select id="regionSelect" class="bg-slate-800/80 text-white font-bold text-sm rounded-lg px-2 py-1 border border-slate-600 outline-none focus:border-amber-400">
+                        <option value="sanaa">أمانة العاصمة (صنعاء)</option>
+                        <option value="marib">مأرب (أرض السدود)</option>
+                        <option value="hadramout">حضرموت (التاريخ الأصيل)</option>
+                        <option value="socotra">سقطرى (عروس البكر)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-xs text-slate-400 block">النتيجة</span>
+                <span id="scoreText" class="text-xl font-extrabold text-amber-400">0</span>
+            </div>
+        </div>
+
+        <!-- Health Bar -->
+        <div class="glass-panel rounded-xl p-3 pointer-events-auto">
+            <div class="flex justify-between items-center mb-1 text-xs font-bold">
+                <span class="text-emerald-400">صحة المحارب</span>
+                <span id="healthText" class="text-white">100 / 100</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-700">
+                <div id="healthBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Inventory Bar -->
+        <div class="glass-panel rounded-xl p-3 flex items-center justify-between pointer-events-auto">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7 1a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                <span class="text-xs font-bold text-slate-200">حقيبة الغنائم</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="lootCountText" class="text-sm font-extrabold text-amber-400">0 / 5</span>
+                <div id="lootSlots" class="flex gap-1">
+                    <div class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Game Over / Victory Modal -->
+    <div id="gameModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-3xl text-center flex flex-col gap-4 border-2 border-amber-500/40">
+            <h2 id="modalTitle" class="text-3xl font-black text-amber-400">انتهت المعركة</h2>
+            <p id="modalDesc" class="text-slate-300 text-sm">لقد قاتلت ببسالة في أمانة العاصمة!</p>
+            <div class="py-2 bg-slate-900/60 rounded-xl">
+                <span class="text-xs text-slate-400 block">إجمالي الغنائم المجمعة</span>
+                <span id="modalLoot" class="text-2xl font-bold text-emerald-400">0 / 5</span>
+            </div>
+            <button id="restartBtn" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black rounded-xl text-lg shadow-lg hover:brightness-110 active:scale-95 transition-all">
+                إعادة المحاولة 🔄
+            </button>
+        </div>
+    </div>
+
+    <!-- Bottom Controls Overlay -->
+    <div class="relative z-10 p-6 w-full max-w-lg mx-auto flex items-end justify-between pointer-events-none mb-4">
+        
+        <!-- Touch Joystick (Movement) -->
+        <div id="joystickZone" class="relative w-32 h-32 joystick-base rounded-full flex items-center justify-center pointer-events-auto">
+            <div id="joystickThumb" class="w-14 h-14 joystick-thumb rounded-full absolute transition-transform duration-75"></div>
+            <span class="absolute -bottom-6 text-[10px] font-bold text-slate-400 tracking-wider">MOVEMENT CONTROLLER</span>
+        </div>
+
+        <!-- Touch Primary Fire Button -->
+        <div class="flex flex-col items-center pointer-events-auto">
+            <button id="fireBtn" class="w-24 h-24 touch-btn rounded-full flex items-center justify-center text-white active:scale-90 transition-all">
+                <svg class="w-10 h-10 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="4" stroke-width="2"/>
+                    <line x1="12" y1="3" x2="12" y2="7" stroke-width="2"/>
+                    <line x1="12" y1="17" x2="12" y2="21" stroke-width="2"/>
+                    <line x1="3" y1="12" x2="7" y2="12" stroke-width="2"/>
+                    <line x1="17" y1="12" x2="21" y2="12" stroke-width="2"/>
+                </svg>
+            </button>
+            <span class="mt-2 text-[10px] font-bold text-rose-400 tracking-wider">PRIMARY FIRE</span>
+        </div>
+
+    </div>
+
+    <!-- Audio Synthesizer Engine (Web Audio API) -->
+    <script>
+        // Audio Synthesizer for SFX without external audio dependencies
+        class SoundFX {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            playShoot() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playHit() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+
+            playLoot() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+        }
+
+        const sfx = new SoundFX();
+    </script>
+
+    <!-- Main Game Engine Logic -->
+    <script>
+        // Setup Canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Game State Variables
+        let isRunning = true;
+        let score = 0;
+        let lootCollected = 0;
+        const maxLoot = 5;
+
+        // Player Attributes
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 20,
+            color: '#38bdf8',
+            speed: 4.5,
+            health: 100,
+            maxHealth: 100,
+            angle: 0
+        };
+
+        // Projectiles, Enemies, and Loot Arrays
+        let projectiles = [];
+        let enemies = [];
+        let lootItems = [];
+        let particles = [];
+
+        // Region Configs
+        const regions = {
+            sanaa: { name: 'أمانة العاصمة', bg: '#1e293b', enemyColor: '#ef4444', speedMult: 1 },
+            marib: { name: 'مأرب', bg: '#331f10', enemyColor: '#f97316', speedMult: 1.2 },
+            hadramout: { name: 'حضرموت', bg: '#1c1917', enemyColor: '#a855f7', speedMult: 1.1 },
+            socotra: { name: 'سقطرى', bg: '#064e3b', enemyColor: '#06b6d4', speedMult: 1.3 }
+        };
+        let currentRegion = 'sanaa';
+
+        // Joystick Input Controller Logic
+        const joystickZone = document.getElementById('joystickZone');
+        const joystickThumb = document.getElementById('joystickThumb');
+        let moveInput = { x: 0, y: 0 };
+        let joystickActive = false;
+        let joystickCenter = { x: 0, y: 0 };
+
+        function handleJoystickStart(e) {
+            joystickActive = true;
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = joystickZone.getBoundingClientRect();
+            joystickCenter = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            handleJoystickMove(e);
+        }
+
+        function handleJoystickMove(e) {
+            if (!joystickActive) return;
+            const touch = e.touches ? e.touches[0] : e;
+            const dx = touch.clientX - joystickCenter.x;
+            const dy = touch.clientY - joystickCenter.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxRadius = 40;
+
+            if (distance === 0) {
+                moveInput = { x: 0, y: 0 };
+                joystickThumb.style.transform = `translate(0px, 0px)`;
+            } else {
+                const angle = Math.atan2(dy, dx);
+                const limitedDist = Math.min(distance, maxRadius);
+                moveInput = {
+                    x: Math.cos(angle) * (limitedDist / maxRadius),
+                    y: Math.sin(angle) * (limitedDist / maxRadius)
+                };
+                joystickThumb.style.transform = `translate(${Math.cos(angle) * limitedDist}px, ${Math.sin(angle) * limitedDist}px)`;
+                player.angle = angle;
+            }
+        }
+
+        function handleJoystickEnd() {
+            joystickActive = false;
+            moveInput = { x: 0, y: 0 };
+            joystickThumb.style.transform = `translate(0px, 0px)`;
+        }
+
+        // Joystick Event Listeners
+        joystickZone.addEventListener('touchstart', handleJoystickStart);
+        window.addEventListener('touchmove', handleJoystickMove);
+        window.addEventListener('touchend', handleJoystickEnd);
+        joystickZone.addEventListener('mousedown', handleJoystickStart);
+        window.addEventListener('mousemove', handleJoystickMove);
+        window.addEventListener('mouseup', handleJoystickEnd);
+
+        // Fire Action Button
+        const fireBtn = document.getElementById('fireBtn');
+        function fireProjectile() {
+            if (!isRunning) return;
+            sfx.playShoot();
+
+            // Calculate direction based on player angle or default movement
+            let targetAngle = player.angle;
+            
+            projectiles.push({
+                x: player.x,
+                y: player.y,
+                vx: Math.cos(targetAngle) * 9,
+                vy: Math.sin(targetAngle) * 9,
+                radius: 5,
+                color: '#f43f5e'
+            });
+        }
+        fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fireProjectile(); });
+        fireBtn.addEventListener('click', fireProjectile);
+
+        // Keyboard Fallback for Testing
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        // Enemy Spawner
+        function spawnEnemy() {
+            if (!isRunning) return;
+            const radius = 18;
+            let x, y;
+            if (Math.random() < 0.5) {
+                x = Math.random() < 0.5 ? -radius : canvas.width + radius;
+                y = Math.random() * canvas.height;
+            } else {
+                x = Math.random() * canvas.width;
+                y = Math.random() < 0.5 ? -radius : canvas.height + radius;
+            }
+
+            enemies.push({
+                x: x,
+                y: y,
+                radius: radius,
+                color: regions[currentRegion].enemyColor,
+                speed: (1.8 + Math.random() * 1.5) * regions[currentRegion].speedMult
+            });
+        }
+        setInterval(spawnEnemy, 1400);
+
+        // Particle Effects Function
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 4 + 2,
+                    color: color,
+                    alpha: 1
+                });
+            }
+        }
+
+        // Update UI Displays
+        function updateUI() {
+            document.getElementById('healthText').textContent = `${Math.max(0, Math.round(player.health))} / ${player.maxHealth}`;
+            const healthBar = document.getElementById('healthBar');
+            const percent = (player.health / player.maxHealth) * 100;
+            healthBar.style.width = `${Math.max(0, percent)}%`;
+
+            document.getElementById('scoreText').textContent = score;
+            document.getElementById('lootCountText').textContent = `${lootCollected} / ${maxLoot}`;
+
+            // Loot Slots UI Update
+            const lootSlots = document.getElementById('lootSlots').children;
+            for (let i = 0; i < maxLoot; i++) {
+                if (i < lootCollected) {
+                    lootSlots[i].className = "w-3 h-3 rounded-full bg-amber-400 border border-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.8)]";
+                } else {
+                    lootSlots[i].className = "w-3 h-3 rounded-full bg-slate-700 border border-slate-600";
+                }
+            }
+        }
+
+        // Region Switching Listener
+        document.getElementById('regionSelect').addEventListener('change', (e) => {
+            currentRegion = e.target.value;
+        });
+
+        // Trigger Game Over or Victory
+        function endGame(won) {
+            isRunning = false;
+            const modal = document.getElementById('gameModal');
+            const title = document.getElementById('modalTitle');
+            const desc = document.getElementById('modalDesc');
+            const lootVal = document.getElementById('modalLoot');
+
+            modal.classList.remove('hidden');
+            lootVal.textContent = `${lootCollected} / ${maxLoot}`;
+
+            if (won) {
+                title.textContent = "انتصار تاريخي! 🇾🇪";
+                title.className = "text-3xl font-black text-emerald-400";
+                desc.textContent = `نجحت في تأمين ${regions[currentRegion].name} وجمع كافة الغنائم الوطنية!`;
+            } else {
+                title.textContent = "انتهت المعركة ⚔️";
+                title.className = "text-3xl font-black text-rose-500";
+                desc.textContent = `سقط المحارب في ${regions[currentRegion].name}. حاول مرة أخرى لحماية الوطن!`;
+            }
+        }
+
+        // Restart Game Action
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            player.health = 100;
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            score = 0;
+            lootCollected = 0;
+            enemies = [];
+            projectiles = [];
+            lootItems = [];
+            particles = [];
+            isRunning = true;
+            document.getElementById('gameModal').classList.add('hidden');
+            updateUI();
+        });
+
+        // Main Game Loop
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (isRunning) {
+                // Player Movement Handling (Touch Joystick + Keyboard)
+                let moveX = moveInput.x;
+                let moveY = moveInput.y;
+
+                if (keys['ArrowUp'] || keys['w']) moveY = -1;
+                if (keys['ArrowDown'] || keys['s']) moveY = 1;
+                if (keys['ArrowLeft'] || keys['a']) moveX = -1;
+                if (keys['ArrowRight'] || keys['d']) moveX = 1;
+
+                player.x += moveX * player.speed;
+                player.y += moveY * player.speed;
+
+                // Keep player within Canvas bounds
+                player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+                player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+
+                // Render Particles
+                particles.forEach((p, index) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha -= 0.03;
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, p.alpha);
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    if (p.alpha <= 0) particles.splice(index, 1);
+                });
+
+                // Render & Update Projectiles
+                projectiles.forEach((proj, pIndex) => {
+                    proj.x += proj.vx;
+                    proj.y += proj.vy;
+
+                    ctx.fillStyle = proj.color;
+                    ctx.shadowColor = proj.color;
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Remove off-screen projectiles
+                    if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) {
+                        projectiles.splice(pIndex, 1);
+                    }
+                });
+
+                // Render & Update Enemies
+                enemies.forEach((enemy, eIndex) => {
+                    // Move enemy towards player
+                    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                    enemy.x += Math.cos(angle) * enemy.speed;
+                    enemy.y += Math.sin(angle) * enemy.speed;
+
+                    // Draw Enemy
+                    ctx.fillStyle = enemy.color;
+                    ctx.beginPath();
+                    ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    // Collision Detection: Projectile vs Enemy
+                    projectiles.forEach((proj, pIndex) => {
+                        const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+                        if (dist < proj.radius + enemy.radius) {
+                            createExplosion(enemy.x, enemy.y, enemy.color);
+                            sfx.playHit();
+                            score += 10;
+
+                            // Chance to drop Loot Item
+                            if (Math.random() < 0.4 && lootCollected < maxLoot) {
+                                lootItems.push({
+                                    x: enemy.x,
+                                    y: enemy.y,
+                                    radius: 10
+                                });
+                            }
+
+                            enemies.splice(eIndex, 1);
+                            projectiles.splice(pIndex, 1);
+                            updateUI();
+                        }
+                    });
+
+                    // Collision Detection: Enemy vs Player
+                    const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                    if (distToPlayer < player.radius + enemy.radius) {
+                        player.health -= 15;
+                        createExplosion(player.x, player.y, '#f43f5e');
+                        sfx.playHit();
+                        enemies.splice(eIndex, 1);
+                        updateUI();
+
+                        if (player.health <= 0) {
+                            endGame(false);
+                        }
+                    }
+                });
+
+                // Render & Update Loot Items
+                lootItems.forEach((loot, lIndex) => {
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(loot.x, loot.y, loot.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Player Pickup Loot
+                    const distToPlayer = Math.hypot(player.x - loot.x, player.y - loot.y);
+                    if (distToPlayer < player.radius + loot.radius) {
+                        lootCollected++;
+                        sfx.playLoot();
+                        lootItems.splice(lIndex, 1);
+                        updateUI();
+
+                        if (lootCollected >= maxLoot) {
+                            endGame(true);
+                        }
+                    }
+                });
+
+                // Render Player
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.rotate(player.angle);
+                
+                // Player Glowing Aura
+                ctx.shadowColor = player.color;
+                ctx.shadowBlur = 15;
+
+                // Player Body
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Player Direction Pointer (Gun/Weapon indicator)
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(12, 0, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start Loop
+        gameLoop();
+    </script>
+</body>
+</html>
+```

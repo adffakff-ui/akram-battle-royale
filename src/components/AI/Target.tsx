@@ -4,28 +4,47 @@ import { Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { sounds } from '../../utils/soundEffects';
 
+export enum EnemyType {
+  Sniper = 'Sniper',
+  Aggressive = 'Aggressive',
+  Defensive = 'Defensive'
+}
+
 interface TargetProps {
   position: [number, number, number];
   name: string;
   playerRef: React.RefObject<THREE.Group | null>;
-  onAttackPlayer: (amount: number) => void;
+  onAttackPlayer: (amount: number, type: EnemyType) => void;
   onDie?: () => void;
+  coverPositions: [number, number, number][];
+  enemyType: EnemyType;
 }
 
-export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAttackPlayer, onDie }) => {
+export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAttackPlayer, onDie, coverPositions, enemyType }) => {
   const meshRef = useRef<THREE.Group>(null);
   const [health, setHealth] = useState(100);
   const [isDead, setIsDead] = useState(false);
   const [isHit, setIsHit] = useState(false);
   const [showDamagePopup, setShowDamagePopup] = useState(false);
+  const [targetCover, setTargetCover] = useState<[number, number, number] | null>(null);
   
-  // AI Settings
-  const detectionRange = 18;
-  const attackRange = 3.5;
-  const attackCooldown = 1.8; // seconds
-  const moveSpeed = 3.4;
-  const retreatHealthThreshold = 35; // Smart AI retreat threshold
+  // AI Settings based on type
+  const detectionRange = enemyType === EnemyType.Sniper ? 40 : 18;
+  const attackRange = enemyType === EnemyType.Sniper ? 30 : 3.5;
+  const attackCooldown = enemyType === EnemyType.Sniper ? 3.0 : 1.8;
+  const moveSpeed = enemyType === EnemyType.Aggressive ? 5.5 : 3.4;
+  const retreatHealthThreshold = enemyType === EnemyType.Defensive ? 50 : 35;
   const lastAttackTime = useRef(0);
+
+  const findNearestCover = () => {
+    const myPos = meshRef.current?.position;
+    if (!myPos) return null;
+    const nearbyCover = coverPositions.filter(pos => new THREE.Vector3(...pos).distanceTo(myPos) < 25);
+    if (nearbyCover.length > 0) {
+        return nearbyCover[Math.floor(Math.random() * nearbyCover.length)];
+    }
+    return null;
+  }
 
   const takeDamage = (amount: number) => {
     if (isDead) return;
@@ -44,6 +63,12 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
     setShowDamagePopup(true);
     setTimeout(() => setIsHit(false), 120);
     setTimeout(() => setShowDamagePopup(false), 700);
+
+    // Seek cover when hit
+    if (!targetCover) {
+        const cover = findNearestCover();
+        if (cover) setTargetCover(cover);
+    }
   };
 
   useFrame((state, delta) => {
@@ -59,6 +84,21 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
     lookAtMatrix.lookAt(targetPos, playerPos, new THREE.Vector3(0, 1, 0));
     targetRotation.setFromRotationMatrix(lookAtMatrix);
     meshRef.current.quaternion.slerp(targetRotation, 0.15);
+
+    // Cover Seeking Behavior
+    if (targetCover) {
+        const coverPos = new THREE.Vector3(...targetCover);
+        const distanceToCover = targetPos.distanceTo(coverPos);
+
+        if (distanceToCover > 2) {
+            const direction = new THREE.Vector3().subVectors(coverPos, targetPos).normalize();
+            direction.y = 0;
+            meshRef.current.position.add(direction.multiplyScalar(moveSpeed * 1.5 * delta));
+            return; // Skip other AI logic while moving to cover
+        } else {
+            setTargetCover(null); // Reached cover
+        }
+    }
 
     // Smart AI Behavior: Low Health Retreat & Cover Seeking
     if (health <= retreatHealthThreshold && distance < 12) {
@@ -86,7 +126,7 @@ export const Target: React.FC<TargetProps> = ({ position, name, playerRef, onAtt
       if (now - lastAttackTime.current >= attackCooldown) {
         lastAttackTime.current = now;
         sounds.playHit();
-        onAttackPlayer(12); // Bot deals 12 damage
+        onAttackPlayer(enemyType === EnemyType.Sniper ? 25 : 12, enemyType); // Bot deals damage based on type
       }
     }
   });

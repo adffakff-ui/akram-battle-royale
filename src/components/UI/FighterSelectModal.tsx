@@ -7,10 +7,27 @@ interface FighterSelectModalProps {
   onStartGame: (fighter: typeof FIGHTERS[0], level: typeof COMBAT_LEVELS[0]) => void;
 }
 
-export const FIGHTERS = [
-  { id: 'bilqis', name: 'مقاتل بلقيس (حارس مأرب)', role: 'هجوم ثقيل ودفاع صلب', hp: 120, speed: 7.5, color: '#f59e0b', icon: '🛡️' },
-  { id: 'hadramawt', name: 'صاعقة حضرموت (قناص الصحراء)', role: 'سرعة ودقة فائقة', hp: 90, speed: 9.2, color: '#eab308', icon: '⚡' },
-  { id: 'aden', name: 'فارس صيرة (بطل عدن)', role: 'توازن بين السرعة والقوة', hp: 100, speed: 8.4, color: '#3b82f6', icon: '⚔️' },
+export interface Ability {
+  name: string;
+  type: 'speed' | 'shield' | 'accuracy';
+  description: string;
+}
+
+export interface Fighter {
+  id: string;
+  name: string;
+  role: string;
+  hp: number;
+  speed: number;
+  color: string;
+  icon: string;
+  ability: Ability;
+}
+
+export const FIGHTERS: Fighter[] = [
+  { id: 'bilqis', name: 'مقاتل بلقيس (حارس مأرب)', role: 'هجوم ثقيل ودفاع صلب', hp: 120, speed: 7.5, color: '#f59e0b', icon: '🛡️', ability: { name: 'درع صلب', type: 'shield', description: 'يقلل الضرر بنسبة 50% لمدة 5 ثواني' } },
+  { id: 'hadramawt', name: 'صاعقة حضرموت (قناص الصحراء)', role: 'سرعة ودقة فائقة', hp: 90, speed: 9.2, color: '#eab308', icon: '⚡', ability: { name: 'تركيز القناص', type: 'accuracy', description: 'تزيد دقة الإصابة بنسبة 100% لمدة 5 ثواني' } },
+  { id: 'aden', name: 'فارس صيرة (بطل عدن)', role: 'توازن بين السرعة والقوة', hp: 100, speed: 8.4, color: '#3b82f6', icon: '⚔️', ability: { name: 'انطلاقة البرق', type: 'speed', description: 'تزيد السرعة بمقدار 50% لمدة 5 ثواني' } },
 ];
 
 export const COMBAT_LEVELS = [
@@ -73,7 +90,11 @@ export const FighterSelectModal: React.FC<FighterSelectModalProps> = ({ isOpen, 
                   <div>
                     <span className="text-2xl mb-2 block">{f.icon}</span>
                     <h3 className="text-white font-bold text-sm mb-1">{f.name}</h3>
-                    <p className="text-white/50 text-[11px]">{f.role}</p>
+                    <p className="text-white/50 text-[11px] mb-2">{f.role}</p>
+                    <div className="bg-white/5 p-2 rounded-lg text-right">
+                      <p className="text-amber-400 text-[10px] font-bold">{f.ability.name}</p>
+                      <p className="text-white/40 text-[9px]">{f.ability.description}</p>
+                    </div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-white/10 flex justify-between text-[10px] text-amber-300 font-mono">
                     <span>⚡ سرعة: {f.speed}</span>

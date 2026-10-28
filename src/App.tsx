@@ -9,7 +9,9 @@ import { HealthBar } from './components/UI/HealthBar';
 import { PWAInstallButton } from './components/UI/PWAInstallButton';
 import { YemenMapRadar } from './components/UI/YemenMapRadar';
 import { Compass } from './components/UI/Compass';
-import { FighterSelectModal, FIGHTERS, COMBAT_LEVELS } from './components/UI/FighterSelectModal';
+import { FighterSelectModal, FIGHTERS, COMBAT_LEVELS, Ability } from './components/UI/FighterSelectModal';
+import { AbilityButton } from './components/UI/AbilityButton';
+import { PanoramaModal } from './components/UI/PanoramaModal';
 import { ImpactParticles } from './components/Effects/Particles';
 import { LootType } from './components/Inventory/LootItem';
 import { YEMEN_GOVERNORATES, Governorate } from './data/yemenGovernorates';
@@ -61,6 +63,10 @@ export default function App() {
   const [defeatedCount, setDefeatedCount] = useState(0);
   const [isVictory, setIsVictory] = useState(false);
   const [matchSaved, setMatchSaved] = useState(false);
+  const [speedModifier, setSpeedModifier] = useState(1);
+  const [damageModifier, setDamageModifier] = useState(1);
+  const [isShieldActive, setIsShieldActive] = useState(false);
+  const [panorama, setPanorama] = useState<{isOpen: boolean, image: string, title: string}>({isOpen: false, image: '', title: ''});
 
   // Particles state
   const [particles, setParticles] = useState<Array<{ id: string, pos: [number, number, number], color: string }>>([]);
@@ -121,6 +127,20 @@ export default function App() {
     setJoystickInput(data);
   }, []);
 
+  const handleActivateAbility = () => {
+    const { ability } = selectedFighter;
+    if (ability.type === 'speed') {
+      setSpeedModifier(1.5);
+      setTimeout(() => setSpeedModifier(1), 5000);
+    } else if (ability.type === 'accuracy') {
+      setDamageModifier(2);
+      setTimeout(() => setDamageModifier(1), 5000);
+    } else if (ability.type === 'shield') {
+      setIsShieldActive(true);
+      setTimeout(() => setIsShieldActive(false), 5000);
+    }
+  };
+
   const handleShootStateChange = useCallback((shooting: boolean) => {
     setIsShooting(shooting);
   }, []);
@@ -158,6 +178,9 @@ export default function App() {
           if (!next.has(nearest.id)) {
             next.add(nearest.id);
             addLog(`🗺️ استكشاف: ${nearest.name}`, 'info');
+            // Trigger panorama if we have one for this governorate
+            if (nearest.id === 'sanaa_capital') setPanorama({ isOpen: true, image: '/src/assets/images/panoramic_sanaa_1793222214153.jpg', title: nearest.name });
+            if (nearest.id === 'hadramawt') setPanorama({ isOpen: true, image: '/src/assets/images/panoramic_hadramout_1793222224781.jpg', title: nearest.name });
           }
           return next;
         });
@@ -215,11 +238,12 @@ export default function App() {
   }, [selectedLevel, addLog, user, matchSaved, currentGov.id]);
 
   const handleTakeDamage = useCallback((amount: number = 10, isZone: boolean = false) => {
+    const effectiveDamage = isShieldActive ? amount * 0.5 : amount;
     setIsDamageFlash(true);
     setTimeout(() => setIsDamageFlash(false), 200);
 
     setPlayerHealth(prev => {
-      const next = Math.max(0, prev - amount);
+      const next = Math.max(0, prev - effectiveDamage);
       if (next <= 0) {
         addLog('☠️ لقد سقطت في المعركة!', 'info');
         // Save Match Loss to Firebase
@@ -233,7 +257,7 @@ export default function App() {
       }
       return next;
     });
-  }, [addLog, user, matchSaved, defeatedCount, currentGov.id]);
+  }, [addLog, user, matchSaved, defeatedCount, currentGov.id, isShieldActive]);
 
   const handleResetTargets = useCallback(() => {
     setTargetResetKey(prev => prev + 1);
@@ -402,6 +426,8 @@ export default function App() {
           isShooting={isShooting} 
           cameraRotation={cameraRotation}
           viewMode={viewMode}
+          speedModifier={speedModifier}
+          damageModifier={damageModifier}
           onPositionChange={handlePositionChange}
           onHitEnemy={handleHitEnemy}
           onSpawnParticles={spawnParticles}
@@ -561,6 +587,19 @@ export default function App() {
 
       <Joystick onMove={handleJoystickMove} />
       <ShootButton onShootStateChange={handleShootStateChange} />
+      {selectedFighter && (
+        <AbilityButton 
+          ability={selectedFighter.ability}
+          onActivate={handleActivateAbility}
+          cooldown={15}
+        />
+      )}
+      <PanoramaModal 
+        isOpen={panorama.isOpen} 
+        onClose={() => setPanorama({...panorama, isOpen: false})}
+        imageSrc={panorama.image}
+        title={panorama.title}
+      />
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950/30 via-transparent to-transparent z-0" />
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Grid, Environment, ContactShadows, Sky, Stars } from '@react-three/drei';
-import { Target } from '../AI/Target';
+import { Target, EnemyType } from '../AI/Target';
 import { LootItem, LootType } from '../Inventory/LootItem';
 import { BlueZone } from './BlueZone';
 import { YEMEN_GOVERNORATES } from '../../data/yemenGovernorates';
@@ -14,6 +14,7 @@ import {
   GovernorateMarker 
 } from './YemenArchitecture';
 import * as THREE from 'three';
+import { WeatherEffects, WeatherType } from '../Effects/WeatherEffects';
 
 interface WorldProps {
   playerRef: React.RefObject<THREE.Group | null>;
@@ -32,6 +33,8 @@ export const World: React.FC<WorldProps> = ({
   enemyCount = 12,
   onEnemyDie
 }) => {
+  const weatherTypes: WeatherType[] = ['clear', 'fog', 'rain', 'sandstorm'];
+  const [weather] = useState<WeatherType>(weatherTypes[Math.floor(Math.random() * weatherTypes.length)]);
   // Enhanced spawn points for soldiers
   const soldierSpawnPoints = useMemo(() => [
     { pos: [20, 1, -10] as [number, number, number], name: 'حارس مأرب' },
@@ -77,6 +80,7 @@ export const World: React.FC<WorldProps> = ({
 
   return (
     <>
+      <WeatherEffects type={weather} />
       {/* Dynamic Lighting */}
       <ambientLight intensity={0.7} color="#fffbeb" />
       <directionalLight
@@ -156,16 +160,22 @@ export const World: React.FC<WorldProps> = ({
       ))}
 
       {/* 5. Dynamic Soldier AI - The "Fighters" requested by user */}
-      {activeSoldiers.map((soldier, idx) => (
-        <Target 
-          key={idx} 
-          position={soldier.pos} 
-          name={soldier.name} 
-          playerRef={playerRef} 
-          onAttackPlayer={onAttackPlayer} 
-          onDie={() => onEnemyDie?.(soldier.name)}
-        />
-      ))}
+      {activeSoldiers.map((soldier, idx) => {
+        const types = [EnemyType.Sniper, EnemyType.Aggressive, EnemyType.Defensive];
+        const type = types[Math.floor(Math.random() * types.length)];
+        return (
+          <Target 
+            key={idx} 
+            position={soldier.pos} 
+            name={soldier.name} 
+            playerRef={playerRef} 
+            onAttackPlayer={onAttackPlayer} 
+            onDie={() => onEnemyDie?.(soldier.name)}
+            coverPositions={clutter.map(c => c.pos)}
+            enemyType={type}
+          />
+        );
+      })}
 
       {/* 6. Tactical Loot Drops */}
       <LootItem position={[5, 0.5, 5]} name="إسعافات أولية" type={LootType.HealthKit} value={40} playerRef={playerRef} onPickup={onPickup} />
