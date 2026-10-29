@@ -213,13 +213,22 @@ def main():
 
     align_and_write_zip(temp_dir, all_files, meta_inf_dir, temp_apk)
 
+    # 9. Apply APK Signature Scheme v2 (required for Android 11+ PackageInstaller)
+    print("9. Applying APK Signature Scheme v2 block...")
+    import sys
+    sys.path.append(os.path.join(root_dir, "scripts"))
+    from apk_v2_signer import sign_apk_v2
+    v2_apk = "/tmp/v2_final_BattleRoyale.apk"
+    sign_apk_v2(temp_apk, v2_apk, cert_pem, key_pem)
+
     # Move to public/BattleRoyale.apk and root BattleRoyale.apk
-    shutil.copy2(temp_apk, output_apk)
-    shutil.copy2(temp_apk, os.path.join(root_dir, "BattleRoyale.apk"))
+    shutil.copy2(v2_apk, output_apk)
+    shutil.copy2(v2_apk, os.path.join(root_dir, "BattleRoyale.apk"))
 
     size_mb = os.path.getsize(output_apk) / (1024 * 1024)
-    print(f"=== APK Build Succeeded! ===")
+    print(f"=== APK Build Succeeded (v1 + v2 Signed)! ===")
     print(f"Output: {output_apk} ({size_mb:.2f} MB)")
 
 if __name__ == "__main__":
     main()
+

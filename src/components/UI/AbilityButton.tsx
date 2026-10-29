@@ -27,37 +27,55 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ ability, onActivat
 
   const handleActivate = () => {
     if (isOnCooldown) return;
-    sounds.playPickup();
+    try {
+      sounds.playPickup();
+    } catch {}
     onActivate();
     setTimer(cooldown);
   };
 
   return (
-    <div className="fixed bottom-12 left-12 z-50 select-none touch-none">
+    <div 
+      id="hero-active-skill-container" 
+      className="fixed bottom-36 right-24 sm:bottom-40 sm:right-32 z-40 select-none touch-none pointer-events-auto flex flex-col items-center"
+    >
       <button
+        type="button"
         onClick={handleActivate}
         disabled={isOnCooldown}
         className={`
-          w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300
+          w-16 h-16 sm:w-18 sm:h-18 rounded-full flex flex-col items-center justify-center transition-all duration-200 relative cursor-pointer border-2
           ${isOnCooldown 
-            ? 'bg-slate-700/50 border-4 border-slate-600 opacity-50 cursor-not-allowed' 
-            : 'bg-amber-600/40 backdrop-blur-md border-4 border-amber-500/50 shadow-xl shadow-amber-900/20 active:scale-95'
+            ? 'bg-slate-950/80 border-slate-700 opacity-60 cursor-not-allowed scale-95' 
+            : 'bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-500 border-yellow-300 shadow-[0_0_25px_rgba(245,158,11,0.6)] active:scale-90 hover:scale-105'
           }
         `}
+        title={`مهارة البطل الخارقة: ${ability.name}`}
       >
+        {/* Inner Skill Ring */}
         <div className={`
-          w-14 h-14 rounded-full flex items-center justify-center border-2 
-          ${isOnCooldown ? 'border-slate-500 bg-slate-800' : 'border-amber-400/30 bg-amber-500/40'}
+          w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border transition-all
+          ${isOnCooldown ? 'border-slate-600 bg-slate-900' : 'border-yellow-200/80 bg-black/40'}
         `}>
-          <LucideZap className={`w-6 h-6 ${isOnCooldown ? 'text-slate-400' : 'text-amber-200'}`} />
+          {isOnCooldown ? (
+            <span className="font-mono text-xs sm:text-sm font-black text-amber-300">
+              {timer}s
+            </span>
+          ) : (
+            <LucideZap className="w-6 h-6 text-yellow-200 animate-pulse" />
+          )}
         </div>
-      </button>
-      
-      <div className="mt-4 text-center">
-        <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full border border-amber-500/20">
-          {isOnCooldown ? timer : ability.name}
+
+        {/* Tactical Active Skill Label */}
+        <span className="absolute -bottom-1 font-mono text-[7px] font-black uppercase tracking-wider text-black bg-yellow-400 px-1.5 py-0.2 rounded-full shadow">
+          SKILL
         </span>
-      </div>
+      </button>
+
+      {/* Hero Skill Name */}
+      <span className="mt-1 text-[8px] font-bold text-amber-300/90 tracking-tight bg-black/70 px-2 py-0.5 rounded-full border border-amber-500/30 truncate max-w-[80px]">
+        {ability.name}
+      </span>
     </div>
   );
 };

@@ -132,6 +132,10 @@ export default function App() {
     setJoystickInput(data);
   }, []);
 
+  const handleSprintToggle = useCallback((isSprinting: boolean) => {
+    setSpeedModifier(isSprinting ? 1.35 : 1.0);
+  }, []);
+
   const handleActivateAbility = () => {
     const { ability } = selectedFighter;
     if (ability.type === 'speed') {
@@ -657,8 +661,8 @@ export default function App() {
                     onOpenLobby={() => setShowFighterModal(true)}
                   />
 
-                  {/* On-screen Controls */}
-                  <Joystick onMove={handleJoystickMove} />
+                  {/* Authentic Free Fire Tactical Joystick (Left) */}
+                  <Joystick onMove={handleJoystickMove} onSprintToggle={handleSprintToggle} />
                   
                   {/* Free Fire Fire, Jump & Crouch Controls */}
                   <ShootButton 
