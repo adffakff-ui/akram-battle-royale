@@ -1,26 +1,26 @@
 {
   "entities": {
-    "users": {
+    "User": {
       "title": "User Profile",
-      "description": "Stores player statistics, progression, and profile information.",
+      "description": "Public and private user profile data including game statistics.",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "description": "Firebase Auth UID" },
         "displayName": { "type": "string", "maxLength": 50 },
-        "email": { "type": "string", "format": "email" },
+        "email": { "type": "string" },
         "photoURL": { "type": "string" },
         "totalKills": { "type": "integer" },
         "totalWins": { "type": "integer" },
         "totalMatches": { "type": "integer" },
-        "exploredGovs": { "type": "array" },
+        "exploredGovs": { "type": "array", "description": "List of governorate IDs explored" },
         "lastActive": { "type": "string", "format": "date-time" },
         "level": { "type": "integer" }
       },
       "required": ["uid", "displayName"]
     },
-    "forexAccounts": {
-      "title": "Forex Account",
-      "description": "Stores financial balance and trading statistics for a user.",
+    "ForexAccount": {
+      "title": "Forex Trading Account",
+      "description": "User's virtual trading account linked to combat performance.",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
@@ -35,9 +35,9 @@
       },
       "required": ["userId", "balance", "currency"]
     },
-    "forexTrades": {
+    "ForexTrade": {
       "title": "Forex Trade",
-      "description": "Records individual buy/sell positions.",
+      "description": "Individual trading position record.",
       "type": "object",
       "properties": {
         "tradeId": { "type": "string" },
@@ -56,25 +56,9 @@
       },
       "required": ["tradeId", "userId", "pair", "type", "lotSize", "entryPrice", "status", "openTime"]
     },
-    "forexSignals": {
-      "title": "Forex Signal",
-      "description": "Trading recommendations/signals for users.",
-      "type": "object",
-      "properties": {
-        "signalId": { "type": "string" },
-        "pair": { "type": "string" },
-        "type": { "type": "string", "enum": ["BUY", "SELL"] },
-        "entryRange": { "type": "string" },
-        "stopLoss": { "type": "number" },
-        "takeProfit": { "type": "number" },
-        "strength": { "type": "integer", "minimum": 1, "maximum": 100 },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["signalId", "pair", "type", "timestamp"]
-    },
-    "matches": {
-      "title": "Match Record",
-      "description": "Records of completed combat matches.",
+    "Match": {
+      "title": "Game Match Record",
+      "description": "Result of a Battle Royale match.",
       "type": "object",
       "properties": {
         "matchId": { "type": "string" },
@@ -84,29 +68,25 @@
         "governorateId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["matchId", "userId"]
+      "required": ["matchId", "userId", "kills", "won"]
     }
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": "users",
-      "description": "Primary user profiles and global leaderboard data."
+      "schema": "User",
+      "description": "User profiles indexed by UID."
     },
     "/forexAccounts/{userId}": {
-      "schema": "forexAccounts",
-      "description": "User financial account state and combat earnings."
+      "schema": "ForexAccount",
+      "description": "Trading accounts indexed by UID."
     },
     "/forexTrades/{tradeId}": {
-      "schema": "forexTrades",
-      "description": "Individual trade records."
-    },
-    "/forexSignals/{signalId}": {
-      "schema": "forexSignals",
-      "description": "Global or user-specific signals."
+      "schema": "ForexTrade",
+      "description": "Trading positions."
     },
     "/matches/{matchId}": {
-      "schema": "matches",
-      "description": "Combat match outcomes and history."
+      "schema": "Match",
+      "description": "Match history."
     }
   }
 }

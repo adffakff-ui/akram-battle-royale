@@ -64,10 +64,10 @@ export const YemenMapRadar: React.FC<YemenMapRadarProps> = ({
   return (
     <>
       {/* 1. Small Circular Radar (Persistent in top-right) */}
-      <div className={`fixed top-6 right-6 z-40 transition-all duration-300 ${viewMode === 'fullscreen' ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'}`}>
+      <div className={`fixed top-2 right-2 z-40 transition-all duration-300 ${viewMode === 'fullscreen' ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'}`}>
         <button
           onClick={() => setViewMode('fullscreen')}
-          className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-slate-900/80 bg-slate-950 shadow-2xl overflow-hidden group pointer-events-auto"
+          className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-slate-900/80 bg-slate-950/90 shadow-2xl overflow-hidden group pointer-events-auto"
         >
           {/* Map background inside radar */}
           <div 
@@ -75,7 +75,7 @@ export const YemenMapRadar: React.FC<YemenMapRadarProps> = ({
             style={radarMapOffset}
           >
             {/* Radar Grid */}
-            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:20px_24px]" />
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:12px_14px]" />
             
             {/* All Governorate Dots on Radar */}
             {YEMEN_GOVERNORATES.map((gov) => {
@@ -83,7 +83,7 @@ export const YemenMapRadar: React.FC<YemenMapRadarProps> = ({
               return (
                 <div
                   key={gov.id}
-                  className="absolute w-1.5 h-1.5 rounded-full border border-white/30"
+                  className="absolute w-1 h-1 rounded-full border border-white/20"
                   style={{ left: pos.left, top: pos.top, backgroundColor: gov.color }}
                 />
               );
@@ -93,10 +93,9 @@ export const YemenMapRadar: React.FC<YemenMapRadarProps> = ({
           {/* Fixed Player Marker in center of radar */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="relative">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 animate-ping absolute -translate-x-1/2 -translate-y-1/2" />
-              <div className="w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-lg -translate-x-1/2 -translate-y-1/2" />
-              {/* Direction indicator (could be added if player rotation is known) */}
-              <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[8px] border-b-emerald-400" />
+              <div className="w-5 h-5 rounded-full bg-emerald-500/20 animate-ping absolute -translate-x-1/2 -translate-y-1/2" />
+              <div className="w-2 h-2 rounded-full bg-emerald-400 border border-white shadow-lg -translate-x-1/2 -translate-y-1/2" />
+              <div className="absolute top-[-6px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-emerald-400" />
             </div>
           </div>
 
@@ -105,39 +104,32 @@ export const YemenMapRadar: React.FC<YemenMapRadarProps> = ({
           
           {/* Label Overlay on Hover */}
           <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-            <LucideMaximize2 className="w-6 h-6 text-white" />
+            <LucideMaximize2 className="w-4 h-4 text-white" />
           </div>
         </button>
         
-        {/* Radar Label */}
-        <div className="mt-2 text-right">
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest bg-slate-900/60 px-2 py-0.5 rounded backdrop-blur-sm">
-            Radar: {currentGov.name}
+        {/* Radar Label (Very small) */}
+        <div className="mt-1 text-right">
+          <span className="text-[7px] font-black text-white/40 uppercase tracking-widest bg-slate-900/60 px-1 py-0.2 rounded backdrop-blur-sm">
+            {currentGov.name}
           </span>
         </div>
       </div>
 
-      {/* 2. Top-Center Status Badge (Optional, keeping it for info) */}
-      <div className={`fixed top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 ${viewMode === 'fullscreen' ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
+      {/* 2. Top-Center Status Badge - Refined to be less intrusive */}
+      <div className={`fixed top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 ${viewMode === 'fullscreen' ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
         <button
           onClick={() => setViewMode('fullscreen')}
-          className="bg-slate-900/85 backdrop-blur-md border border-amber-500/40 px-5 py-2.5 rounded-full flex items-center gap-3 shadow-2xl transition-all active:scale-95 group text-right"
+          className="bg-slate-900/60 backdrop-blur-sm border border-white/5 px-3 py-1 rounded-full flex items-center gap-2 shadow-lg transition-all active:scale-95 group"
         >
-          <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-            <LucideMapPin className="w-4 h-4 text-amber-400" />
+          <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+            <LucideMapPin className="w-3 h-3 text-amber-400" />
           </div>
-          <div className="flex flex-col items-end">
-            <div className="flex items-center gap-2">
-              <span className="text-amber-400 font-extrabold text-sm">محافظة {currentGov.name}</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            </div>
-            <span className="text-white/60 text-[10px] tracking-tight truncate max-w-[150px]">
-              {currentGov.landmark}
-            </span>
-          </div>
-          <span className="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md">خريطة اليمن 🇾🇪</span>
+          <span className="text-amber-400 font-bold text-[10px] truncate max-w-[80px]">{currentGov.name}</span>
+          <span className="bg-amber-500/80 text-slate-950 font-black text-[7px] px-1.5 py-0.2 rounded-sm">YEMEN 🇾🇪</span>
         </button>
       </div>
+
 
       {/* 3. Fullscreen Interactive Map Modal */}
       {viewMode === 'fullscreen' && (

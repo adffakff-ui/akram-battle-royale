@@ -22,7 +22,7 @@ export const WeaponSelector: React.FC<WeaponSelectorProps> = ({
   onReload
 }) => {
   return (
-    <div className="fixed top-16 left-3 sm:top-20 sm:left-6 z-40 select-none flex flex-col items-start gap-2 pointer-events-auto">
+    <div className="select-none flex flex-col items-start gap-1.5 pointer-events-auto">
       
       {/* Active Free Fire Tactical Buffs */}
       {activeUpgrades.length > 0 && (

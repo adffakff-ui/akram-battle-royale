@@ -19,6 +19,7 @@ import {
   addDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../utils/firebaseErrors';
 
 export interface ForexAccount {
   userId?: string;
@@ -156,35 +157,52 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [showNotification]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount (run only once, stable timer)
   useEffect(() => {
-    refreshLiveRates();
-    const apiInterval = setInterval(() => {
-      fetchLiveForexAndCryptoRates().then(liveData => {
+    let isMounted = true;
+    fetchLiveForexAndCryptoRates().then(liveData => {
+      if (isMounted) {
         setMarketPrices(prev => ({ ...prev, ...liveData }));
         setIsLiveConnected(true);
         setLastUpdated(Date.now());
-      }).catch(() => {});
-    }, 45000);
+      }
+    }).catch(() => {});
 
-    return () => clearInterval(apiInterval);
-  }, [refreshLiveRates]);
+    const apiInterval = setInterval(() => {
+      fetchLiveForexAndCryptoRates().then(liveData => {
+        if (isMounted) {
+          setMarketPrices(prev => ({ ...prev, ...liveData }));
+          setIsLiveConnected(true);
+          setLastUpdated(Date.now());
+        }
+      }).catch(() => {});
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(apiInterval);
+    };
+  }, []);
 
   // 2. Micro-tick engine simulating interbank pip fluctuations around live real rates
   useEffect(() => {
     const tickInterval = setInterval(() => {
       setMarketPrices(prev => {
+        let hasChanged = false;
         const next = { ...prev };
         SUPPORTED_PAIRS.forEach(pair => {
           const current = next[pair.id] || pair.initialBasePrice;
           const deltaFactor = (Math.random() - 0.495) * (pair.id === 'BTCUSD' ? 0.0004 : 0.00015);
           const rawPrice = current * (1 + deltaFactor);
-          next[pair.id] = parseFloat(rawPrice.toFixed(pair.decimals));
+          const newPrice = parseFloat(rawPrice.toFixed(pair.decimals));
+          if (newPrice !== current) {
+            next[pair.id] = newPrice;
+            hasChanged = true;
+          }
         });
-        return next;
+        return hasChanged ? next : prev;
       });
-      setLastUpdated(Date.now());
-    }, 1500);
+    }, 2500);
 
     return () => clearInterval(tickInterval);
   }, []);
@@ -246,12 +264,23 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubAccount = onSnapshot(accountRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as ForexAccount;
-        setAccount(prev => ({
-          ...prev,
-          balance: data.balance ?? prev.balance,
-          currency: data.currency ?? 'USD',
-          leverage: data.leverage ?? 100,
-        }));
+        setAccount(prev => {
+          if (
+            prev.balance === data.balance &&
+            prev.currency === data.currency &&
+            prev.leverage === data.leverage &&
+            prev.totalCombatEarnings === data.totalCombatEarnings
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            balance: data.balance ?? prev.balance,
+            currency: data.currency ?? 'USD',
+            leverage: data.leverage ?? 100,
+            totalCombatEarnings: data.totalCombatEarnings ?? prev.totalCombatEarnings,
+          };
+        });
       } else {
         // Initialize if not present
         setDoc(accountRef, {
@@ -267,7 +296,7 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }).catch(err => console.warn('Initialize forexAccount error:', err));
       }
     }, (err) => {
-      console.warn('Firestore onSnapshot account error:', err);
+      handleFirestoreError(err, OperationType.GET, `forexAccounts/${user.uid}`);
     });
 
     // Sync trades from Firestore
@@ -290,11 +319,17 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           closeTime: data.closeTime,
         };
       });
-      if (cloudTrades.length > 0) {
-        setTrades(cloudTrades);
-      }
+      setTrades(prev => {
+        if (
+          prev.length === cloudTrades.length &&
+          prev.every((t, i) => t.id === cloudTrades[i]?.id && t.status === cloudTrades[i]?.status && t.profit === cloudTrades[i]?.profit)
+        ) {
+          return prev;
+        }
+        return cloudTrades;
+      });
     }, (err) => {
-      console.warn('Firestore onSnapshot trades error:', err);
+      handleFirestoreError(err, OperationType.LIST, 'forexTrades');
     });
 
     return () => {
@@ -376,7 +411,7 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           updatedAt: serverTimestamp(),
         });
       } catch (err) {
-        console.warn('Firestore trade save error (offline mode used)', err);
+        handleFirestoreError(err, OperationType.CREATE, 'forexTrades');
       }
     }
 
@@ -444,7 +479,7 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           updatedAt: serverTimestamp(),
         });
       } catch (err) {
-        console.warn('Firestore close trade error', err);
+        handleFirestoreError(err, OperationType.UPDATE, `forexAccounts/${user.uid}`);
       }
     }
 
@@ -460,7 +495,6 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const updated = {
         ...prev,
         balance: nextBalance,
-        equity: parseFloat((nextBalance + floatingPnL).toFixed(2)),
         totalCombatEarnings: nextCombat,
       };
       try {
@@ -479,32 +513,50 @@ export const ForexProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     showNotification(`💰 غنيمة معركة يمانية! تم إيداع +$${amount} في رصيد التداول (${reason}).`);
-  }, [floatingPnL, user, showNotification]);
+  }, [user, showNotification]);
+
+  const contextValue = useMemo(() => ({
+    rates,
+    marketPrices,
+    supportedPairs: SUPPORTED_PAIRS,
+    selectedPair,
+    setSelectedPair,
+    isLiveConnected,
+    isLoadingRates,
+    lastUpdated,
+    account: liveAccount,
+    trades,
+    floatingPnL,
+    combatBonusActive,
+    combatBonusPercent,
+    openTrade,
+    closeTrade,
+    addCombatSpoils,
+    refreshLiveRates,
+    notificationMsg,
+    clearNotification,
+  }), [
+    rates,
+    marketPrices,
+    selectedPair,
+    isLiveConnected,
+    isLoadingRates,
+    lastUpdated,
+    liveAccount,
+    trades,
+    floatingPnL,
+    combatBonusActive,
+    combatBonusPercent,
+    openTrade,
+    closeTrade,
+    addCombatSpoils,
+    refreshLiveRates,
+    notificationMsg,
+    clearNotification,
+  ]);
 
   return (
-    <ForexContext.Provider
-      value={{
-        rates,
-        marketPrices,
-        supportedPairs: SUPPORTED_PAIRS,
-        selectedPair,
-        setSelectedPair,
-        isLiveConnected,
-        isLoadingRates,
-        lastUpdated,
-        account: liveAccount,
-        trades,
-        floatingPnL,
-        combatBonusActive,
-        combatBonusPercent,
-        openTrade,
-        closeTrade,
-        addCombatSpoils,
-        refreshLiveRates,
-        notificationMsg,
-        clearNotification,
-      }}
-    >
+    <ForexContext.Provider value={contextValue}>
       {children}
     </ForexContext.Provider>
   );

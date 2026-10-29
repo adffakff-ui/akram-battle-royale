@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Master Catch-All Deny
+    // 1. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
@@ -34,7 +34,9 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'displayName']) &&
              data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'totalKills', 'totalWins', 'totalMatches', 'exploredGovs', 'lastActive', 'level']) &&
              data.uid == request.auth.uid &&
-             data.displayName is string && data.displayName.size() <= 50;
+             data.displayName is string && data.displayName.size() <= 50 &&
+             (data.get('email', '') is string && data.get('email', '').size() <= 100) &&
+             (data.get('photoURL', '') is string && data.get('photoURL', '').size() <= 500);
     }
 
     function isValidForexAccount(data) {
@@ -42,7 +44,8 @@ service cloud.firestore {
              data.keys().hasOnly(['userId', 'balance', 'equity', 'margin', 'freeMargin', 'leverage', 'currency', 'totalCombatEarnings', 'updatedAt']) &&
              data.userId == request.auth.uid &&
              data.balance is number &&
-             data.currency in ['USD', 'YER'];
+             data.currency in ['USD', 'YER'] &&
+             (data.get('leverage', 100) is number);
     }
 
     function isValidForexTrade(data) {
@@ -52,30 +55,36 @@ service cloud.firestore {
              data.type in ['BUY', 'SELL'] &&
              data.status in ['OPEN', 'CLOSED'] &&
              data.lotSize is number && data.lotSize > 0 &&
-             data.entryPrice is number;
+             data.entryPrice is number &&
+             isValidId(data.tradeId);
     }
 
     function isValidMatch(data) {
-      return data.keys().hasAll(['matchId', 'userId']) &&
+      return data.keys().hasAll(['matchId', 'userId', 'kills', 'won']) &&
              data.keys().hasOnly(['matchId', 'userId', 'kills', 'won', 'governorateId', 'timestamp']) &&
-             data.userId == request.auth.uid;
+             data.userId == request.auth.uid &&
+             data.kills is number &&
+             data.won is bool;
     }
 
     // --- Collection Rules ---
 
-    // Public game leaderboards can be queried by anyone (including unauthenticated guests)
     match /users/{userId} {
       allow get: if true;
-      allow list: if true;
+      allow list: if true; // Public leaderboards
       allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
-      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && (
+        // Action: Update profile stats
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'totalKills', 'totalWins', 'totalMatches', 'exploredGovs', 'lastActive', 'level'])
+      );
     }
 
     match /forexAccounts/{userId} {
       allow get: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidForexAccount(incoming());
       allow update: if isSignedIn() && isOwner(userId) && isValidForexAccount(incoming()) && (
-        incoming().userId == existing().userId
+        // Action: Update balance/stats from game
+        incoming().diff(existing()).affectedKeys().hasOnly(['balance', 'equity', 'margin', 'freeMargin', 'totalCombatEarnings', 'updatedAt'])
       );
     }
 
@@ -84,20 +93,16 @@ service cloud.firestore {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidId(tradeId) && isValidForexTrade(incoming());
       allow update: if isSignedIn() && isOwner(existing().userId) && isValidForexTrade(incoming()) && (
-        incoming().tradeId == existing().tradeId &&
-        incoming().userId == existing().userId
+        // Action: Update trade status or live price
+        incoming().diff(existing()).affectedKeys().hasOnly(['currentPrice', 'profit', 'status', 'closeTime'])
       );
-    }
-
-    match /forexSignals/{signalId} {
-      allow read: if true;
-      allow write: if false;
     }
 
     match /matches/{matchId} {
       allow get: if true;
       allow list: if true;
       allow create: if isSignedIn() && isValidId(matchId) && isValidMatch(incoming());
+      allow update: if false; // Matches are immutable
     }
 
     match /test/connection {

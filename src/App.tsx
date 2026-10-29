@@ -36,6 +36,7 @@ import { ForexDashboard } from './components/Forex/ForexDashboard';
 import { TabNavigation } from './components/Layout/TabNavigation';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
+import { handleFirestoreError, OperationType } from './utils/firebaseErrors';
 
 const MAX_CAPACITY = 5;
 
@@ -480,7 +481,7 @@ export default function App() {
             won: true,
             governorateId: currentGov.id,
             timestamp: new Date().toISOString()
-          }).catch(err => console.warn('Could not save match result:', err));
+          }).catch(err => handleFirestoreError(err, OperationType.CREATE, `matches/${matchId}`));
           setMatchSaved(true);
         }
       }
@@ -509,7 +510,7 @@ export default function App() {
             won: false,
             governorateId: currentGov.id,
             timestamp: new Date().toISOString()
-          }).catch(err => console.warn('Could not save match result:', err));
+          }).catch(err => handleFirestoreError(err, OperationType.CREATE, `matches/${matchId}`));
           setMatchSaved(true);
         }
       } else if (isZone) {
@@ -577,43 +578,49 @@ export default function App() {
       {!showSplash && (
         <div className="w-full h-full flex flex-col">
           {activeTab === 'GAME' ? (
-            <div className="relative flex-1">
-              
-              {/* 3D Canvas Viewport */}
-              <Canvas shadows camera={{ position: [0, 5, isScoped ? 5 : 10], fov: isScoped ? 25 : 50 }}>
-                <World 
-                  key={targetResetKey} 
-                  playerRef={playerRef} 
-                  onPickup={handlePickup} 
-                  onAttackPlayer={(amt) => handleTakeDamage(amt)}
-                  onZoneDamage={(amt) => handleTakeDamage(amt, true)}
-                  enemyCount={selectedLevel.enemyCount}
-                  onEnemyDie={handleEnemyDie}
-                  onClaimAirdrop={handleClaimAirdrop}
-                  glooWalls={glooWalls}
-                  onExpireGlooWall={handleExpireGlooWall}
-                  onDestroyGlooWall={handleDestroyGlooWall}
-                />
-                <Player 
-                  ref={playerRef}
-                  joystickInput={joystickInput} 
-                  isShooting={isShooting} 
-                  cameraRotation={cameraRotation}
-                  viewMode={viewMode}
-                  speedModifier={speedModifier * (combatBonusActive ? 1.15 : 1)}
-                  damageModifier={damageModifier * (combatBonusActive ? 1.25 : 1)}
-                  activeWeapon={currentWeapon}
-                  onConsumeAmmo={handleConsumeAmmo}
-                  onPositionChange={handlePositionChange}
-                  onHitEnemy={handleHitEnemy}
-                  onSpawnParticles={spawnParticles}
-                  jumpTrigger={jumpTrigger}
-                  isCrouching={isCrouching}
-                />
-                {particles.map((p) => (
-                  <ImpactParticles key={p.id} position={p.pos} color={p.color} onFinish={() => removeParticles(p.id)} />
-                ))}
-              </Canvas>
+            <>
+              {/* 3D Canvas Viewport - Explicitly relative and flex to ensure visibility */}
+              <div className="relative flex-1 bg-slate-900 overflow-hidden">
+                <Canvas 
+                  shadows 
+                  camera={{ position: [0, 5, 10], fov: 50 }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                  dpr={[1, 2]}
+                >
+                  <World 
+                    key={targetResetKey} 
+                    playerRef={playerRef} 
+                    onPickup={handlePickup} 
+                    onAttackPlayer={(amt) => handleTakeDamage(amt)}
+                    onZoneDamage={(amt) => handleTakeDamage(amt, true)}
+                    enemyCount={selectedLevel.enemyCount}
+                    onEnemyDie={handleEnemyDie}
+                    onClaimAirdrop={handleClaimAirdrop}
+                    glooWalls={glooWalls}
+                    onExpireGlooWall={handleExpireGlooWall}
+                    onDestroyGlooWall={handleDestroyGlooWall}
+                  />
+                  <Player 
+                    ref={playerRef}
+                    joystickInput={joystickInput} 
+                    isShooting={isShooting} 
+                    cameraRotation={cameraRotation}
+                    viewMode={viewMode}
+                    speedModifier={speedModifier * (combatBonusActive ? 1.15 : 1)}
+                    damageModifier={damageModifier * (combatBonusActive ? 1.25 : 1)}
+                    activeWeapon={currentWeapon}
+                    onConsumeAmmo={handleConsumeAmmo}
+                    onPositionChange={handlePositionChange}
+                    onHitEnemy={handleHitEnemy}
+                    onSpawnParticles={spawnParticles}
+                    jumpTrigger={jumpTrigger}
+                    isCrouching={isCrouching}
+                  />
+                  {particles.map((p) => (
+                    <ImpactParticles key={p.id} position={p.pos} color={p.color} onFinish={() => removeParticles(p.id)} />
+                  ))}
+                </Canvas>
+              </div>
 
               {/* Free Fire Combat Tactical HUD */}
               {!showFighterModal && !isVictory && !isDefeated && (
@@ -621,7 +628,7 @@ export default function App() {
                   <CameraTouchZone onRotate={handleCameraRotate} />
                   <Compass rotationX={cameraRotation.x} />
                   
-                  {/* Yemen Governorate Map & Free Fire Safe Zone Radar */}
+                  {/* Yemen Governorate Map & Free Fire Safe Zone Radar (Top Right) */}
                   <YemenMapRadar
                     playerX={playerCoords.x}
                     playerZ={playerCoords.z}
@@ -630,7 +637,7 @@ export default function App() {
                     onTeleportToGov={handleTeleportToGov}
                   />
 
-                  {/* Free Fire Tactical HUD */}
+                  {/* Free Fire Tactical HUD (Bottom Center HP/EP) */}
                   <FreeFireHUD
                     playerHealth={playerHealth}
                     playerMaxHealth={selectedFighter.hp}
@@ -661,48 +668,57 @@ export default function App() {
                     onOpenLobby={() => setShowFighterModal(true)}
                   />
 
-                  {/* Authentic Free Fire Tactical Joystick (Left) */}
+                  {/* Weapon Selector Bar (Top Left) */}
+                  <div className="fixed top-2 left-2 z-40 pointer-events-auto scale-90 origin-top-left">
+                    <WeaponSelector 
+                      currentWeapon={currentWeapon}
+                      unlockedWeapons={unlockedWeapons}
+                      activeUpgrades={activeUpgrades}
+                      onSelectWeapon={handleSelectWeapon}
+                      currentAmmo={ammo}
+                      maxAmmo={maxAmmo}
+                      onReload={handleReload}
+                    />
+                  </div>
+
+                  {/* Authentic Free Fire Tactical Joystick (Bottom Left) */}
                   <Joystick onMove={handleJoystickMove} onSprintToggle={handleSprintToggle} />
                   
-                  {/* Free Fire Fire, Jump & Crouch Controls */}
+                  {/* Free Fire Fire, Jump & Crouch Controls (Bottom Right) */}
                   <ShootButton 
                     onShootStateChange={handleShootStateChange}
                     onJump={() => setJumpTrigger(Date.now())}
                     onCrouch={() => setIsCrouching(prev => !prev)}
                   />
 
-                  {/* Free Fire Hero Ability Button */}
-                  <AbilityButton 
-                    ability={selectedFighter.ability} 
-                    onActivate={handleActivateAbility} 
-                    cooldown={15} 
-                  />
+                  {/* Free Fire Hero Ability Button (Bottom Right, above shoot button) */}
+                  <div className="fixed bottom-40 right-10 z-40 pointer-events-auto">
+                    <AbilityButton 
+                      ability={selectedFighter.ability} 
+                      onActivate={handleActivateAbility} 
+                      cooldown={15} 
+                    />
+                  </div>
 
-                  {/* Weapon Selector Bar */}
-                  <WeaponSelector 
-                    currentWeapon={currentWeapon}
-                    unlockedWeapons={unlockedWeapons}
-                    activeUpgrades={activeUpgrades}
-                    onSelectWeapon={handleSelectWeapon}
-                    currentAmmo={ammo}
-                    maxAmmo={maxAmmo}
-                    onReload={handleReload}
-                  />
-
-                  {/* Top FPS/TPS and Auth controls */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 pointer-events-auto">
+                  {/* Top FPS/TPS and Auth controls (Top Center) - Refined and very small */}
+                  <div className="absolute top-1 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 pointer-events-auto scale-75">
                     <button 
                       onClick={() => setViewMode(prev => prev === 'FPS' ? 'TPS' : 'FPS')} 
-                      className="glass-panel px-3 py-1.5 rounded-xl text-white font-black text-[10px] flex items-center justify-center gap-1.5 active:scale-95 transition-all border-amber-500/40 cursor-pointer"
+                      className="bg-slate-900/60 backdrop-blur-sm px-2 py-1 rounded-lg text-white font-black text-[9px] flex items-center gap-1 border border-white/5 active:scale-95 transition-all"
                     >
-                      {viewMode === 'FPS' ? <LucideUser className="w-3.5 h-3.5 text-amber-400" /> : <LucideEye className="w-3.5 h-3.5 text-amber-400" />}
+                      {viewMode === 'FPS' ? <LucideUser className="w-3 h-3 text-amber-400" /> : <LucideEye className="w-3 h-3 text-amber-400" />}
                       <span>{viewMode}</span>
                     </button>
-                    <AuthSection user={user} />
-                    <PWAInstallButton />
+                    <div className="opacity-60 hover:opacity-100 transition-opacity">
+                      <AuthSection user={user} />
+                    </div>
+                    <div className="opacity-60 hover:opacity-100 transition-opacity scale-90">
+                      <PWAInstallButton />
+                    </div>
                   </div>
                 </>
               )}
+
 
               {/* Free Fire Lobby / Character & Map Select Modal */}
               <FighterSelectModal 
@@ -748,33 +764,37 @@ export default function App() {
                   }}
                 />
               )}
-            </div>
+            </>
           ) : (
             <div className="flex-1 overflow-hidden">
               <ForexDashboard />
             </div>
           )}
 
-          {/* Bottom Navigation */}
-          <TabNavigation 
-            activeTab={activeTab} 
-            onTabChange={setActiveTab} 
-            onOpenLeaderboard={() => setShowLeaderboard(true)}
-            onOpenSettings={() => {
-               setNotification({ message: '⚙️ تم ضبط إعدادات فري فاير التكتيكية', type: 'info' });
-               setTimeout(() => setNotification(null), 2000);
-            }}
-            onOpenProfile={() => {
-              if (user) {
-                setNotification({ message: `👑 مرحباً بك يا بطل: ${user.displayName || 'المحارب'}`, type: 'info' });
-              } else {
-                setNotification({ message: '🚀 سجل دخولك لحفظ تصنيف الهيرويك والجوائز', type: 'warning' });
-              }
-              setTimeout(() => setNotification(null), 2000);
-            }}
-          />
+
+          {/* Bottom Navigation - HIDDEN DURING GAMEPLAY TO ENABLE VISION */}
+          {(!activeTab || activeTab === 'FOREX' || (activeTab === 'GAME' && showFighterModal)) && (
+            <TabNavigation 
+              activeTab={activeTab} 
+              onTabChange={setActiveTab} 
+              onOpenLeaderboard={() => setShowLeaderboard(true)}
+              onOpenSettings={() => {
+                setNotification({ message: '⚙️ تم ضبط إعدادات فري فاير التكتيكية', type: 'info' });
+                setTimeout(() => setNotification(null), 2000);
+              }}
+              onOpenProfile={() => {
+                if (user) {
+                  setNotification({ message: `👑 مرحباً بك يا بطل: ${user.displayName || 'المحارب'}`, type: 'info' });
+                } else {
+                  setNotification({ message: '🚀 سجل دخولك لحفظ تصنيف الهيرويك والجوائز', type: 'warning' });
+                }
+                setTimeout(() => setNotification(null), 2000);
+              }}
+            />
+          )}
         </div>
       )}
+
 
       {/* Global Notifications */}
       {notification && (

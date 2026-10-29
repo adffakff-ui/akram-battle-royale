@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -67,8 +67,11 @@ export const ForexDashboard: React.FC = () => {
   };
 
   // Keep a 30-point price history for charting
+  const lastPriceRef = useRef<number>(0);
   useEffect(() => {
     const price = currentRate.price;
+    if (Math.abs(price - lastPriceRef.current) < 0.000001) return;
+    lastPriceRef.current = price;
     setPriceHistoryMap(prev => {
       const existing = prev[selectedPair.id] || Array(25).fill(price);
       const updated = [...existing.slice(1), price];
@@ -92,63 +95,68 @@ export const ForexDashboard: React.FC = () => {
     await openTrade(type, lotSize);
   };
 
-  // SVG Area Line Chart Component
-  const LivePriceChart = ({ data, color, decimals }: { data: number[], color: string, decimals: number }) => {
-    if (!data || data.length < 2) return <div className="h-32" />;
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = (max - min) || 0.0001;
+// SVG Area Line Chart Component (Top-level pure component)
+const LivePriceChart: React.FC<{
+  data: number[];
+  color: string;
+  decimals: number;
+  pairId: string;
+}> = ({ data, decimals, pairId }) => {
+  if (!data || data.length < 2) return <div className="h-32" />;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = (max - min) || 0.0001;
 
-    const points = data.map((val, i) => {
-      const x = (i / (data.length - 1)) * 100;
-      const y = 90 - ((val - min) / range) * 75;
-      return `${x},${y}`;
-    }).join(' ');
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 90 - ((val - min) / range) * 75;
+    return `${x},${y}`;
+  }).join(' ');
 
-    const isRising = data[data.length - 1] >= data[0];
-    const chartColor = isRising ? '#10b981' : '#f43f5e';
+  const isRising = data[data.length - 1] >= data[0];
+  const chartColor = isRising ? '#10b981' : '#f43f5e';
 
-    return (
-      <div className="relative w-full h-36 flex flex-col justify-between">
-        <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono tabular-nums px-1">
-          <span>أعلى: {max.toFixed(decimals)}</span>
-          <span className="text-amber-400 font-bold">● سعر حي: {data[data.length - 1]?.toFixed(decimals)}</span>
-          <span>أدنى: {min.toFixed(decimals)}</span>
-        </div>
-
-        <svg viewBox="0 0 100 100" className="w-full h-24 overflow-visible" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id={`chart-grad-${selectedPair.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={chartColor} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={chartColor} stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
-          <polygon
-            points={`0,100 ${points} 100,100`}
-            fill={`url(#chart-grad-${selectedPair.id})`}
-          />
-          <polyline
-            fill="none"
-            stroke={chartColor}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={points}
-            className="transition-all duration-700"
-          />
-        </svg>
-
-        <div className="flex justify-between items-center text-[9px] text-slate-500 font-sans px-1 border-t border-slate-800 pt-1">
-          <span>دقيقة مضت</span>
-          <span className="flex items-center gap-1 text-emerald-400 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
-            تحديث فوري حي (Tick by Tick)
-          </span>
-          <span>الآن</span>
-        </div>
+  return (
+    <div className="relative w-full h-36 flex flex-col justify-between">
+      <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono tabular-nums px-1">
+        <span>أعلى: {max.toFixed(decimals)}</span>
+        <span className="text-amber-400 font-bold">● سعر حي: {data[data.length - 1]?.toFixed(decimals)}</span>
+        <span>أدنى: {min.toFixed(decimals)}</span>
       </div>
-    );
-  };
+
+      <svg viewBox="0 0 100 100" className="w-full h-24 overflow-visible" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={`chart-grad-${pairId}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={chartColor} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={chartColor} stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <polygon
+          points={`0,100 ${points} 100,100`}
+          fill={`url(#chart-grad-${pairId})`}
+        />
+        <polyline
+          fill="none"
+          stroke={chartColor}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+          className="transition-all duration-700"
+        />
+      </svg>
+
+      <div className="flex justify-between items-center text-[9px] text-slate-500 font-sans px-1 border-t border-slate-800 pt-1">
+        <span>دقيقة مضت</span>
+        <span className="flex items-center gap-1 text-emerald-400 font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
+          تحديث فوري حي (Tick by Tick)
+        </span>
+        <span>الآن</span>
+      </div>
+    </div>
+  );
+};
 
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-200 overflow-y-auto pb-28 custom-scrollbar">
@@ -337,7 +345,7 @@ export const ForexDashboard: React.FC = () => {
 
             {/* Live Chart */}
             <div className="bg-slate-950/60 p-4 rounded-3xl border border-slate-800/80">
-              <LivePriceChart data={activeHistory} color="#10b981" decimals={selectedPair.decimals} />
+              <LivePriceChart data={activeHistory} color="#10b981" decimals={selectedPair.decimals} pairId={selectedPair.id} />
             </div>
 
             {/* Live Dual Bid / Ask Quotation Display */}

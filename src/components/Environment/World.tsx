@@ -113,6 +113,12 @@ export const World: React.FC<WorldProps> = ({
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       <Environment preset="sunset" />
       
+      {/* Visibility Marker - Only for debugging if screen is black */}
+      <mesh position={[0, 10, -20]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="white" emissive="white" emissiveIntensity={0.5} />
+      </mesh>
+      
       {/* Massive Ground Plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.05, 0]}>
         <planeGeometry args={[2000, 2000]} />
