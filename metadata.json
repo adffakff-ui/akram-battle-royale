@@ -1,6 +1,6 @@
 {
-  "name": "محارب اليمن - Yemen Warrior",
-  "description": "لعبة باتل رويال متكاملة تمثل محافظات اليمن الـ 22، تتميز بذكاء اصطناعي متطور، وحفظ تقدم اللاعبين، ولوحة متصدرين تنافسية.",
+  "name": "محارب اليمن & فوركس - Yemen Warrior & Forex",
+  "description": "لعبة باتل رويال متكاملة تمثل محافظات اليمن الـ 22، مع نظام تداول فوركس (Forex) احترافي مدمج لتجربة واقعية وشاملة.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

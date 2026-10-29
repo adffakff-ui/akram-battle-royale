@@ -9,7 +9,7 @@ export function LeaderboardModal({ isOpen, onClose }: { isOpen: boolean; onClose
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      getLeaderboard().then(data => {
+      getLeaderboard().then((data: any[]) => {
         setLeaders(data);
         setLoading(false);
       });

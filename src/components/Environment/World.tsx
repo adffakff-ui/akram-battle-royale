@@ -18,6 +18,7 @@ import {
 import * as THREE from 'three';
 import { WeatherEffects, WeatherType } from '../Effects/WeatherEffects';
 import { AirdropCrate } from './AirdropCrate';
+import { GlooWall, GlooWallData } from '../Combat/GlooWall';
 
 interface WorldProps {
   playerRef: React.RefObject<THREE.Group | null>;
@@ -27,6 +28,9 @@ interface WorldProps {
   enemyCount?: number;
   onEnemyDie?: (name: string) => void;
   onClaimAirdrop?: (id: string, rewardType: 'weapon' | 'upgrade') => void;
+  glooWalls?: GlooWallData[];
+  onExpireGlooWall?: (id: string) => void;
+  onDestroyGlooWall?: (id: string, pos: [number, number, number]) => void;
 }
 
 export const World: React.FC<WorldProps> = ({ 
@@ -36,7 +40,10 @@ export const World: React.FC<WorldProps> = ({
   onZoneDamage,
   enemyCount = 12,
   onEnemyDie,
-  onClaimAirdrop
+  onClaimAirdrop,
+  glooWalls = [],
+  onExpireGlooWall = () => {},
+  onDestroyGlooWall = () => {}
 }) => {
   const weatherTypes: WeatherType[] = ['clear', 'fog', 'rain', 'sandstorm'];
   const [weather] = useState<WeatherType>(weatherTypes[Math.floor(Math.random() * weatherTypes.length)]);
@@ -197,6 +204,16 @@ export const World: React.FC<WorldProps> = ({
           <AirdropCrate id="crate_hadramout" position={[60, 0, 15]} playerRef={playerRef} onClaim={onClaimAirdrop} />
         </>
       )}
+
+      {/* 8. Active Free Fire Gloo Walls (جدار الغلو) */}
+      {glooWalls.map((wall) => (
+        <GlooWall 
+          key={wall.id} 
+          wall={wall} 
+          onExpire={onExpireGlooWall} 
+          onDestroy={onDestroyGlooWall} 
+        />
+      ))}
 
       <ContactShadows opacity={0.4} scale={50} blur={2.5} far={10} resolution={1024} color="#000000" />
     </>

@@ -12,9 +12,11 @@ interface PlayerProps {
   damageModifier?: number;
   activeWeapon?: Weapon;
   onPositionChange?: (x: number, z: number) => void;
-  onHitEnemy?: (enemyName: string, damage: number, hitPos?: [number, number, number]) => void;
+  onHitEnemy?: (enemyName: string, damage: number, hitPos?: [number, number, number], isHeadshot?: boolean) => void;
   onSpawnParticles?: (pos: [number, number, number], color: string) => void;
   onConsumeAmmo?: () => boolean;
+  jumpTrigger?: number;
+  isCrouching?: boolean;
 }
 
 export const Player = forwardRef<THREE.Group, PlayerProps>(({ 
@@ -28,7 +30,9 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   onPositionChange,
   onHitEnemy,
   onSpawnParticles,
-  onConsumeAmmo
+  onConsumeAmmo,
+  jumpTrigger,
+  isCrouching
 }, ref) => {
   const meshRef = useRef<THREE.Group>(null);
   const playerBodyRef = useRef<THREE.Group>(null);
@@ -37,6 +41,14 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   const isGrounded = useRef(true);
   const lastFireTime = useRef(0);
   const lastPosReportTime = useRef(0);
+
+  // Trigger jump when jumpTrigger prop changes
+  useEffect(() => {
+    if (jumpTrigger && isGrounded.current) {
+      playerVelocity.current.y = 8.0;
+      isGrounded.current = false;
+    }
+  }, [jumpTrigger]);
 
   // Keyboard controls state
   const keysRef = useRef({ forward: false, backward: false, left: false, right: false, shoot: false });
@@ -212,8 +224,19 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
             let targetObj: THREE.Object3D | null = hit.object;
             while (targetObj) {
               if (targetObj.userData && targetObj.userData.takeDamage) {
-                targetObj.userData.takeDamage(baseDamage);
-                onHitEnemy?.(targetObj.name || 'عدو', baseDamage, [hit.point.x, hit.point.y, hit.point.z]);
+                // If it's a tactical Gloo Wall, it absorbs the bullet
+                if (targetObj.userData.isGlooWall) {
+                  targetObj.userData.takeDamage(baseDamage);
+                  onSpawnParticles?.([hit.point.x, hit.point.y, hit.point.z], '#38bdf8');
+                  return;
+                }
+
+                // Check for headshot (higher impact point or sniper precision)
+                const isHeadshot = hit.point.y > 1.4 || activeWeapon.category === 'sniper';
+                const finalDamage = isHeadshot ? Math.round(baseDamage * 2.2) : baseDamage;
+                targetObj.userData.takeDamage(finalDamage);
+                onHitEnemy?.(targetObj.name || 'عدو', finalDamage, [hit.point.x, hit.point.y, hit.point.z], isHeadshot);
+                onSpawnParticles?.([hit.point.x, hit.point.y, hit.point.z], isHeadshot ? '#ef4444' : '#fbbf24');
                 return;
               }
               targetObj = targetObj.parent;

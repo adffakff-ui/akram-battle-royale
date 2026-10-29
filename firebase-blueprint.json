@@ -9,21 +9,72 @@
         "displayName": { "type": "string", "maxLength": 50 },
         "email": { "type": "string", "format": "email" },
         "photoURL": { "type": "string" },
-        "totalKills": { "type": "integer", "description": "Lifetime kills" },
-        "totalWins": { "type": "integer", "description": "Lifetime victory royals" },
-        "totalMatches": { "type": "integer", "description": "Total matches played" },
-        "exploredGovs": { 
-          "type": "array", 
-          "description": "IDs of Yemeni governorates visited"
-        },
+        "totalKills": { "type": "integer" },
+        "totalWins": { "type": "integer" },
+        "totalMatches": { "type": "integer" },
+        "exploredGovs": { "type": "array" },
         "lastActive": { "type": "string", "format": "date-time" },
-        "level": { "type": "integer", "description": "Player combat level" }
+        "level": { "type": "integer" }
       },
-      "required": ["uid", "displayName", "totalKills", "totalWins"]
+      "required": ["uid", "displayName"]
+    },
+    "forexAccounts": {
+      "title": "Forex Account",
+      "description": "Stores financial balance and trading statistics for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "balance": { "type": "number" },
+        "equity": { "type": "number" },
+        "margin": { "type": "number" },
+        "freeMargin": { "type": "number" },
+        "leverage": { "type": "integer" },
+        "currency": { "type": "string", "enum": ["USD", "YER"] },
+        "totalCombatEarnings": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "balance", "currency"]
+    },
+    "forexTrades": {
+      "title": "Forex Trade",
+      "description": "Records individual buy/sell positions.",
+      "type": "object",
+      "properties": {
+        "tradeId": { "type": "string" },
+        "userId": { "type": "string" },
+        "pair": { "type": "string" },
+        "type": { "type": "string", "enum": ["BUY", "SELL"] },
+        "lotSize": { "type": "number" },
+        "entryPrice": { "type": "number" },
+        "currentPrice": { "type": "number" },
+        "stopLoss": { "type": "number" },
+        "takeProfit": { "type": "number" },
+        "profit": { "type": "number" },
+        "status": { "type": "string", "enum": ["OPEN", "CLOSED"] },
+        "openTime": { "type": "string", "format": "date-time" },
+        "closeTime": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tradeId", "userId", "pair", "type", "lotSize", "entryPrice", "status", "openTime"]
+    },
+    "forexSignals": {
+      "title": "Forex Signal",
+      "description": "Trading recommendations/signals for users.",
+      "type": "object",
+      "properties": {
+        "signalId": { "type": "string" },
+        "pair": { "type": "string" },
+        "type": { "type": "string", "enum": ["BUY", "SELL"] },
+        "entryRange": { "type": "string" },
+        "stopLoss": { "type": "number" },
+        "takeProfit": { "type": "number" },
+        "strength": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["signalId", "pair", "type", "timestamp"]
     },
     "matches": {
-      "title": "Match Result",
-      "description": "Records individual match performance for history.",
+      "title": "Match Record",
+      "description": "Records of completed combat matches.",
       "type": "object",
       "properties": {
         "matchId": { "type": "string" },
@@ -33,17 +84,29 @@
         "governorateId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["matchId", "userId", "kills", "won", "timestamp"]
+      "required": ["matchId", "userId"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "users",
-      "description": "Primary user data collection."
+      "description": "Primary user profiles and global leaderboard data."
+    },
+    "/forexAccounts/{userId}": {
+      "schema": "forexAccounts",
+      "description": "User financial account state and combat earnings."
+    },
+    "/forexTrades/{tradeId}": {
+      "schema": "forexTrades",
+      "description": "Individual trade records."
+    },
+    "/forexSignals/{signalId}": {
+      "schema": "forexSignals",
+      "description": "Global or user-specific signals."
     },
     "/matches/{matchId}": {
       "schema": "matches",
-      "description": "Individual match history logs."
+      "description": "Combat match outcomes and history."
     }
   }
 }

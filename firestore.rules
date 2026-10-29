@@ -31,50 +31,75 @@ service cloud.firestore {
     // --- Validation Blueprints ---
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'displayName', 'totalKills', 'totalWins']) &&
+      return data.keys().hasAll(['uid', 'displayName']) &&
              data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'totalKills', 'totalWins', 'totalMatches', 'exploredGovs', 'lastActive', 'level']) &&
              data.uid == request.auth.uid &&
-             data.displayName is string && data.displayName.size() <= 50 &&
-             data.totalKills is int && data.totalKills >= 0 &&
-             data.totalWins is int && data.totalWins >= 0 &&
-             (data.email == null || data.email is string) &&
-             (data.lastActive == null || data.lastActive == request.time);
+             data.displayName is string && data.displayName.size() <= 50;
+    }
+
+    function isValidForexAccount(data) {
+      return data.keys().hasAll(['userId', 'balance', 'currency']) &&
+             data.keys().hasOnly(['userId', 'balance', 'equity', 'margin', 'freeMargin', 'leverage', 'currency', 'totalCombatEarnings', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.balance is number &&
+             data.currency in ['USD', 'YER'];
+    }
+
+    function isValidForexTrade(data) {
+      return data.keys().hasAll(['tradeId', 'userId', 'pair', 'type', 'lotSize', 'entryPrice', 'status', 'openTime']) &&
+             data.keys().hasOnly(['tradeId', 'userId', 'pair', 'type', 'lotSize', 'entryPrice', 'currentPrice', 'stopLoss', 'takeProfit', 'profit', 'status', 'openTime', 'closeTime']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['BUY', 'SELL'] &&
+             data.status in ['OPEN', 'CLOSED'] &&
+             data.lotSize is number && data.lotSize > 0 &&
+             data.entryPrice is number;
     }
 
     function isValidMatch(data) {
-      return data.keys().hasAll(['matchId', 'userId', 'kills', 'won', 'timestamp']) &&
+      return data.keys().hasAll(['matchId', 'userId']) &&
              data.keys().hasOnly(['matchId', 'userId', 'kills', 'won', 'governorateId', 'timestamp']) &&
-             data.userId == request.auth.uid &&
-             data.kills is int && data.kills >= 0 &&
-             data.won is bool &&
-             data.timestamp == request.time;
+             data.userId == request.auth.uid;
     }
 
     // --- Collection Rules ---
 
+    // Public game leaderboards can be queried by anyone (including unauthenticated guests)
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn(); // For leaderboard
-      
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
-      
-      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && (
-        // Action: Update Stats
-        incoming().diff(existing()).affectedKeys().hasOnly(['totalKills', 'totalWins', 'totalMatches', 'exploredGovs', 'lastActive', 'level', 'displayName', 'photoURL'])
+      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+    }
+
+    match /forexAccounts/{userId} {
+      allow get: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidForexAccount(incoming());
+      allow update: if isSignedIn() && isOwner(userId) && isValidForexAccount(incoming()) && (
+        incoming().userId == existing().userId
       );
-      
-      allow delete: if false; // Users cannot delete their accounts in-game
+    }
+
+    match /forexTrades/{tradeId} {
+      allow get: if isSignedIn() && isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(tradeId) && isValidForexTrade(incoming());
+      allow update: if isSignedIn() && isOwner(existing().userId) && isValidForexTrade(incoming()) && (
+        incoming().tradeId == existing().tradeId &&
+        incoming().userId == existing().userId
+      );
+    }
+
+    match /forexSignals/{signalId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     match /matches/{matchId} {
-      allow get: if isSignedIn() && (isOwner(existing().userId));
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn() && isValidId(matchId) && isValidMatch(incoming());
-      allow update, delete: if false; // Matches are immutable
     }
 
-    // Interaction Collections (e.g. for potential future features)
     match /test/connection {
       allow get: if true;
     }

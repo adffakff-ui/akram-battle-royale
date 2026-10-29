@@ -1,9 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+@font-face {
+  font-family: 'GFF';
+  src: url('/assets/freefire/gff-devanagari-regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
 
 @theme {
   --font-tajawal: 'Tajawal', sans-serif;
+  --font-gff: 'GFF', 'Tajawal', sans-serif;
 }
 
 body {
