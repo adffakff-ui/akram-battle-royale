@@ -13,7 +13,8 @@ import {
   ShaharahBridge, 
   GovernorateMarker,
   YemenRockFormation,
-  YemenPalmTree
+  YemenPalmTree,
+  PowerLinePole
 } from './YemenArchitecture';
 import * as THREE from 'three';
 import { WeatherEffects, WeatherType } from '../Effects/WeatherEffects';
@@ -159,6 +160,11 @@ export const World: React.FC<WorldProps> = ({
       <BabAlYaman position={[0, 0, -5]} />
       <YemenTowerHouse position={[-15, 0, -20]} height={12} width={4} name="قصر صنعاء" />
       <YemenTowerHouse position={[20, 0, 15]} height={10} width={3.5} />
+      
+      {/* Power Lines for tactical feel (as seen in screenshot) */}
+      <PowerLinePole position={[10, 0, -15]} rotationY={0.5} />
+      <PowerLinePole position={[15, 0, -25]} rotationY={0.5} />
+      <PowerLinePole position={[20, 0, -35]} rotationY={0.5} />
       
       {/* 3. Governorate Specific Landmarks */}
       <ThroneOfBilqis position={[25, 0, -12]} />

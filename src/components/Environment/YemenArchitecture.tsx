@@ -348,3 +348,44 @@ export const YemenPalmTree: React.FC<{
     </group>
   );
 };
+// 10. أعمدة الكهرباء التكتيكية (Tactical Power Line Poles - As seen in FF Max)
+export const PowerLinePole: React.FC<{
+  position: [number, number, number];
+  rotationY?: number;
+}> = ({ position, rotationY = 0 }) => {
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      {/* Main Pole */}
+      <mesh castShadow position={[0, 4.5, 0]}>
+        <cylinderGeometry args={[0.2, 0.35, 9, 8]} />
+        <meshStandardMaterial color="#334155" roughness={0.8} />
+      </mesh>
+      
+      {/* Top Crossbar */}
+      <mesh castShadow position={[0, 8.5, 0]}>
+        <boxGeometry args={[4, 0.25, 0.25]} />
+        <meshStandardMaterial color="#475569" roughness={0.7} />
+      </mesh>
+      
+      {/* Insulators */}
+      {[-1.8, -0.6, 0.6, 1.8].map((x, i) => (
+        <mesh key={i} position={[x, 8.7, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.3, 8]} />
+          <meshStandardMaterial color="#cbd5e1" roughness={0.4} />
+        </mesh>
+      ))}
+
+      {/* Middle Crossbar */}
+      <mesh castShadow position={[0, 6.5, 0]}>
+        <boxGeometry args={[3.2, 0.2, 0.2]} />
+        <meshStandardMaterial color="#475569" roughness={0.7} />
+      </mesh>
+      
+      {/* Transformers / Boxes (Tactical details) */}
+      <mesh castShadow position={[0.4, 6.8, 0.1]}>
+        <boxGeometry args={[0.5, 0.8, 0.4]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+    </group>
+  );
+};

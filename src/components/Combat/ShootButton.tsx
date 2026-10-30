@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { LucideTarget, LucideArrowUp, LucideChevronsDown } from 'lucide-react';
+import { LucideArrowUp, LucideChevronsDown, LucideZap } from 'lucide-react';
 import { sounds } from '../../utils/soundEffects';
 
 interface ShootButtonProps {
   onShootStateChange: (isShooting: boolean) => void;
   onJump?: () => void;
   onCrouch?: () => void;
+  onProne?: () => void;
 }
 
 export const ShootButton: React.FC<ShootButtonProps> = ({ 
   onShootStateChange,
   onJump,
-  onCrouch
+  onCrouch,
+  onProne
 }) => {
   const [active, setActive] = useState(false);
 
@@ -31,22 +33,20 @@ export const ShootButton: React.FC<ShootButtonProps> = ({
   };
 
   return (
-    <div id="primary-fire-container" className="fixed bottom-8 right-6 sm:bottom-12 sm:right-10 z-50 select-none touch-none flex items-end gap-3 pointer-events-auto">
+    <div id="primary-fire-container" className="fixed bottom-8 right-6 sm:bottom-12 sm:right-10 z-50 select-none touch-none flex items-end gap-4 pointer-events-auto">
       
-      {/* Side Tactical Actions: Jump & Crouch */}
-      <div className="flex flex-col gap-2.5 pb-2">
-        {/* Jump Button */}
+      {/* Side Actions Cluster */}
+      <div className="flex flex-col gap-3 pb-2">
+        {/* Prone Button (Matching screenshot) */}
         <button
           type="button"
           onClick={() => {
-            onJump?.();
-            try { sounds.playTeleport(); } catch {}
+            onProne?.();
+            try { sounds.playWeaponSwitch(); } catch {}
           }}
-          className="w-12 h-12 rounded-2xl bg-slate-900/85 border border-amber-500/40 text-amber-300 flex flex-col items-center justify-center active:scale-90 transition-transform shadow-lg cursor-pointer"
-          title="قفز (Jump / Space)"
+          className="w-11 h-11 rounded-full bg-black/60 border border-white/20 text-white/80 flex items-center justify-center active:scale-90 transition-transform shadow-lg cursor-pointer"
         >
-          <LucideArrowUp className="w-5 h-5" />
-          <span className="text-[7px] font-black uppercase">JUMP</span>
+          <span className="text-lg">🧎</span>
         </button>
 
         {/* Crouch Button */}
@@ -56,50 +56,62 @@ export const ShootButton: React.FC<ShootButtonProps> = ({
             onCrouch?.();
             try { sounds.playWeaponSwitch(); } catch {}
           }}
-          className="w-12 h-12 rounded-2xl bg-slate-900/85 border border-amber-500/40 text-amber-300 flex flex-col items-center justify-center active:scale-90 transition-transform shadow-lg cursor-pointer"
-          title="انحناء (Crouch / C)"
+          className="w-13 h-13 rounded-full bg-black/60 border border-white/30 text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg cursor-pointer"
         >
-          <LucideChevronsDown className="w-5 h-5" />
-          <span className="text-[7px] font-black uppercase">CROUCH</span>
+          <LucideChevronsDown className="w-6 h-6" />
         </button>
       </div>
 
-      {/* Main Free Fire Iconic Fire Button */}
-      <div className="flex flex-col items-center">
+      {/* Main Cluster */}
+      <div className="flex flex-col items-center gap-4">
+        {/* Jump Button */}
         <button
-          id="primary-fire-button"
-          onMouseDown={handleStart}
-          onMouseUp={handleEnd}
-          onMouseLeave={handleEnd}
-          onTouchStart={handleStart}
-          onTouchEnd={handleEnd}
-          className={`
-            w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all duration-75 relative cursor-pointer
-            ${active 
-              ? 'bg-gradient-to-tr from-amber-600 via-red-600 to-yellow-500 scale-90 shadow-[0_0_40px_rgba(239,68,68,0.8)] border-4 border-yellow-300' 
-              : 'bg-gradient-to-tr from-red-950/80 via-slate-950/90 to-amber-950/80 backdrop-blur-md border-4 border-amber-500/70 shadow-2xl shadow-red-950/40 active:scale-95'
-            }
-          `}
+          type="button"
+          onClick={() => {
+            onJump?.();
+            try { sounds.playTeleport(); } catch {}
+          }}
+          className="w-13 h-13 rounded-full bg-black/60 border border-white/30 text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg cursor-pointer"
         >
-          {/* Inner Crosshair Rings */}
-          <div className={`
-            w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center border-2 transition-all
-            ${active ? 'border-yellow-200 bg-red-500/40' : 'border-amber-400/40 bg-amber-500/20'}
-          `}>
-            <LucideTarget className={`w-9 h-9 ${active ? 'text-yellow-200 scale-110' : 'text-amber-400'}`} />
-          </div>
-
-          {/* Fire Embers Accent */}
-          <span className="absolute -top-1 font-mono text-[8px] font-black tracking-widest text-yellow-300 bg-red-600 px-2 py-0.5 rounded-full uppercase shadow">
-            FIRE
-          </span>
+          <LucideArrowUp className="w-6 h-6" />
         </button>
-        
-        <span className="mt-1 text-[8px] font-bold text-amber-300/80 uppercase tracking-widest bg-black/60 px-2 py-0.5 rounded-full border border-amber-500/30">
-          إطلاق النار
-        </span>
-      </div>
 
+        {/* Iconic FF Max Fire Button (Bullet Icon) */}
+        <div className="relative">
+          <button
+            id="primary-fire-button"
+            onMouseDown={handleStart}
+            onMouseUp={handleEnd}
+            onMouseLeave={handleEnd}
+            onTouchStart={handleStart}
+            onTouchEnd={handleEnd}
+            className={`
+              w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all duration-75 relative cursor-pointer border-4
+              ${active 
+                ? 'bg-red-600 scale-90 border-white shadow-[0_0_40px_rgba(239,68,68,0.8)]' 
+                : 'bg-black/60 border-white/40 shadow-2xl active:scale-95'
+              }
+            `}
+          >
+            {/* Bullet Icon Overlay (Similar to screenshot) */}
+            <div className={`
+              w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center border-2 transition-all
+              ${active ? 'border-white bg-red-500' : 'border-white/20 bg-white/5'}
+            `}>
+              <svg viewBox="0 0 24 24" className={`w-10 h-10 ${active ? 'fill-white' : 'fill-white/40'}`}>
+                <path d="M12,2L12,2c-1.1,0-2,0.9-2,2v12c0,1.1,0.9,2,2,2s2-0.9,2-2V4C14,2.9,13.1,2,12,2z M12,22c-1.1,0-2-0.9-2-2h4C14,21.1,13.1,22,12,22z" />
+              </svg>
+            </div>
+            
+            {/* Speed/Recoil Visualizer */}
+            <div className="absolute inset-0 rounded-full border border-white/5 animate-ping opacity-20" />
+          </button>
+          
+          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[8px] font-black text-white/60 uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded-full border border-white/10 whitespace-nowrap">
+            إطلاق النار
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

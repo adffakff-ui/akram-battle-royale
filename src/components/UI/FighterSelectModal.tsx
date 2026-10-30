@@ -160,16 +160,22 @@ interface FighterSelectModalProps {
   isOpen: boolean;
   onStartGame: (fighter: Fighter, level: CombatLevel) => void;
   onClose?: () => void;
+  selectedFighter: Fighter;
+  onFighterChange: (fighter: Fighter) => void;
+  selectedLevel: CombatLevel;
+  onLevelChange: (level: CombatLevel) => void;
 }
 
 export const FighterSelectModal: React.FC<FighterSelectModalProps> = ({ 
   isOpen, 
   onStartGame,
-  onClose 
+  onClose,
+  selectedFighter,
+  onFighterChange,
+  selectedLevel,
+  onLevelChange
 }) => {
   const { account: forexAccount } = useForex();
-  const [selectedFighter, setSelectedFighter] = useState<Fighter>(FIGHTERS[0]);
-  const [selectedLevel, setSelectedLevel] = useState<CombatLevel>(COMBAT_LEVELS[0]);
   const [teamMode, setTeamMode] = useState<'SOLO' | 'DUO' | 'SQUAD'>('SOLO');
   const [isMatchmaking, setIsMatchmaking] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -200,11 +206,11 @@ export const FighterSelectModal: React.FC<FighterSelectModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-2 sm:p-4 select-none"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4 select-none"
       style={{ touchAction: 'pan-y' }}
     >
       {/* Free Fire Lobby Container */}
-      <div className="w-full max-w-5xl bg-gradient-to-b from-slate-900 via-slate-950 to-black border-2 border-amber-500/80 rounded-2xl sm:rounded-3xl shadow-[0_0_50px_rgba(245,158,11,0.25)] text-right flex flex-col max-h-[96vh] h-auto overflow-hidden relative">
+      <div className="w-full max-w-5xl bg-gradient-to-b from-slate-900/90 via-slate-950/90 to-black/90 border-2 border-amber-500/60 rounded-2xl sm:rounded-3xl shadow-[0_0_50px_rgba(245,158,11,0.15)] text-right flex flex-col max-h-[96vh] h-auto overflow-hidden relative">
         
         {/* Glow Embers Top Accent */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-500" />
@@ -306,7 +312,7 @@ export const FighterSelectModal: React.FC<FighterSelectModalProps> = ({
                   <div
                     key={fighter.id}
                     onClick={() => {
-                      setSelectedFighter(fighter);
+                      onFighterChange(fighter);
                       try { sounds.playWeaponSwitch(); } catch {}
                     }}
                     className={`p-3 rounded-2xl border-2 transition-all cursor-pointer relative ${
@@ -396,7 +402,7 @@ export const FighterSelectModal: React.FC<FighterSelectModalProps> = ({
                     <div
                       key={level.id}
                       onClick={() => {
-                        setSelectedLevel(level);
+                        onLevelChange(level);
                         try { sounds.playWeaponSwitch(); } catch {}
                       }}
                       className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${

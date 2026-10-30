@@ -1,7 +1,7 @@
 export interface Weapon {
   id: string;
   name: string;
-  category: 'assault' | 'sniper' | 'shotgun' | 'smg' | 'heavy';
+  category: 'assault' | 'sniper' | 'shotgun' | 'smg' | 'heavy' | 'melee';
   icon: string;
   damage: number;
   fireRate: number; // seconds between shots
@@ -13,6 +13,7 @@ export interface Weapon {
   color: string;
   description: string;
   scope?: boolean;
+  isMelee?: boolean;
 }
 
 export interface TacticalUpgrade {
@@ -92,6 +93,20 @@ export const WEAPONS: Record<string, Weapon> = {
     recoil: 0.03,
     color: '#10b981',
     description: 'بندقية متزنة للغاية مع ارتداد منخفض ودقة فائقة للمسافات المتوسطة.'
+  },
+  fist: {
+    id: 'fist',
+    name: 'القبضة القاتلة (Fist)',
+    category: 'melee',
+    icon: '👊',
+    damage: 45,
+    fireRate: 0.5,
+    range: 3.5,
+    magazineSize: Infinity,
+    recoil: 0,
+    color: '#cbd5e1',
+    description: 'الهجوم اليدوي المباشر، قوي في المواجهات القريبة جداً.',
+    isMelee: true
   }
 };
 

@@ -8,7 +8,8 @@ import {
   LucideSkull, 
   LucideTrendingUp,
   LucideCoins,
-  LucideFlame
+  LucideFlame,
+  LucidePackage
 } from 'lucide-react';
 import { Weapon, TacticalUpgrade } from '../../data/weapons';
 import { Fighter } from './FighterSelectModal';
@@ -28,9 +29,11 @@ interface FreeFireHUDProps {
   maxAmmo: number;
   glooWallCount: number;
   medkitCount: number;
+  backpackCount: number;
   isScoped: boolean;
   onDeployGlooWall: () => void;
   onUseMedkit: () => void;
+  onOpenBackpack: () => void;
   onToggleScope: () => void;
   onReload: () => void;
   onSelectWeapon: (weapon: Weapon) => void;
@@ -58,9 +61,11 @@ export const FreeFireHUD: React.FC<FreeFireHUDProps> = ({
   maxAmmo,
   glooWallCount,
   medkitCount,
+  backpackCount,
   isScoped,
   onDeployGlooWall,
   onUseMedkit,
+  onOpenBackpack,
   onToggleScope,
   onReload,
   onSelectWeapon,
@@ -277,12 +282,43 @@ export const FreeFireHUD: React.FC<FreeFireHUDProps> = ({
 
           {/* Bottom Indicators */}
           <div className="flex items-center justify-between text-[9px] text-white/50 font-mono">
-            <span>EP: {Math.round(ep)}/200</span>
-            <span className="text-amber-400 font-bold">FREE FIRE ROYALE</span>
-            <span>HP: {Math.round(playerHealth)}/200</span>
+            <span>EP: {Math.round(ep)} / {maxEp}</span>
+            <span className="text-amber-400 font-bold tracking-widest uppercase">FF MAX ROYALE</span>
+            <span>HP: {Math.round(playerHealth)} / {playerMaxHealth}</span>
           </div>
 
         </div>
+      </div>
+
+      {/* 5. BACKPACK BUTTON (Bottom Left - Matching Screenshot) */}
+      <div className="absolute bottom-6 left-6 pointer-events-auto">
+        <button
+          type="button"
+          onClick={onOpenBackpack}
+          className="w-14 h-14 rounded-2xl bg-slate-900/80 border-2 border-amber-500/40 flex flex-col items-center justify-center text-amber-300 shadow-xl active:scale-90 transition-all cursor-pointer"
+        >
+          <span className="text-2xl">🎒</span>
+          <span className="text-[8px] font-black uppercase mt-0.5">الحقيبة</span>
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center">
+            {backpackCount}
+          </span>
+        </button>
+      </div>
+
+      {/* 6. INTERACTION BUTTONS (Far Left Center - Matching Screenshot) */}
+      <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 pointer-events-auto">
+        {/* Loot/Box interaction */}
+        <button className="w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white/80 active:scale-95">
+          <LucidePackage className="w-6 h-6" />
+        </button>
+        {/* Healing/Medkit quick access */}
+        <button 
+          onClick={onUseMedkit}
+          className="w-12 h-12 rounded-full bg-emerald-600/40 border border-emerald-400/60 flex items-center justify-center text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+        >
+          <LucidePlus className="w-6 h-6" />
+          <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[8px] font-black px-1 rounded-full">{medkitCount}</span>
+        </button>
       </div>
 
     </div>

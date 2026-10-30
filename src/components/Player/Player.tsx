@@ -39,14 +39,19 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   const muzzleFlashRef = useRef<THREE.Mesh>(null);
   const playerVelocity = useRef(new THREE.Vector3(0, 0, 0));
   const isGrounded = useRef(true);
+  const isJumping = useRef(false);
   const lastFireTime = useRef(0);
   const lastPosReportTime = useRef(0);
+  const jumpScale = useRef(1.0); // For squash/stretch animation
 
   // Trigger jump when jumpTrigger prop changes
   useEffect(() => {
-    if (jumpTrigger && isGrounded.current) {
-      playerVelocity.current.y = 8.0;
+    if (jumpTrigger && isGrounded.current && !isJumping.current) {
+      playerVelocity.current.y = 8.5; // Slightly stronger jump
       isGrounded.current = false;
+      isJumping.current = true;
+      jumpScale.current = 1.2; // Stretch on launch
+      try { sounds.playTeleport(); } catch {}
     }
   }, [jumpTrigger]);
 
@@ -88,12 +93,6 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   const fireRate = activeWeapon.fireRate;
   const range = activeWeapon.range;
 
-  // Camera Settings
-  const cameraOffsetTPS = useMemo(() => new THREE.Vector3(0, 2.5, 8), []);
-  const cameraOffsetFPS = useMemo(() => new THREE.Vector3(0, 0.6, 0.2), []); // Slightly forward from center
-  const cameraSmoothSpeed = 10;
-  const cameraLookAtOffsetTPS = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
-
   // Reusable vectors for optimization
   const _moveDir = useMemo(() => new THREE.Vector3(), []);
   const _targetRotation = useMemo(() => new THREE.Quaternion(), []);
@@ -101,12 +100,6 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
   const _shootOrigin = useMemo(() => new THREE.Vector3(), []);
   const _shootDir = useMemo(() => new THREE.Vector3(), []);
   const _muzzlePos = useMemo(() => new THREE.Vector3(), []);
-  
-  // Camera math helpers
-  const _camEuler = useMemo(() => new THREE.Euler(), []);
-  const _camQuat = useMemo(() => new THREE.Quaternion(), []);
-  const _camPos = useMemo(() => new THREE.Vector3(), []);
-  const _lookTarget = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -154,16 +147,28 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
       }
     }
 
-    // 2. Gravity logic
+    // 2. Gravity & Jump Physics with feedback
     if (meshRef.current.position.y <= 1.0) {
+      if (isJumping.current) {
+        // Landing feedback: squash
+        jumpScale.current = 0.8;
+        isJumping.current = false;
+      }
       isGrounded.current = true;
       playerVelocity.current.y = 0;
       meshRef.current.position.y = 1.0;
     } else {
       isGrounded.current = false;
     }
+    
     if (!isGrounded.current) playerVelocity.current.y += gravityValue * delta;
     meshRef.current.position.y += playerVelocity.current.y * delta;
+
+    // Smoothly return scale to normal (squash/stretch animation)
+    jumpScale.current = THREE.MathUtils.lerp(jumpScale.current, 1.0, 10 * delta);
+    if (playerBodyRef.current) {
+      playerBodyRef.current.scale.set(1 / jumpScale.current, jumpScale.current, 1 / jumpScale.current);
+    }
 
     // 3. Shooting logic (Touch Button OR Spacebar)
     const activeShooting = isShooting || keysRef.current.shoot;
@@ -187,17 +192,23 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
           }, 60);
         }
 
-        const baseDamage = activeWeapon.damage * (damageModifier || 1.0);
-        const pelletsCount = activeWeapon.pellets || 1;
-        const spreadAmount = activeWeapon.spread || 0;
+        const isMelee = activeWeapon.isMelee;
 
-        // Origin and direction from Camera
+        if (isMelee) {
+          // Punch animation effect (rotate forward)
+          if (playerBodyRef.current) {
+            playerBodyRef.current.rotation.x = -0.3;
+            setTimeout(() => { if (playerBodyRef.current) playerBodyRef.current.rotation.x = 0; }, 150);
+          }
+          try { sounds.playHit(); } catch {}
+        }
+
+        // Origin and direction from Camera (or player forward if melee)
         state.camera.getWorldPosition(_shootOrigin);
+        state.camera.getWorldDirection(_shootDir);
 
         for (let p = 0; p < pelletsCount; p++) {
-          state.camera.getWorldDirection(_shootDir);
-
-          if (spreadAmount > 0) {
+          if (!isMelee && spreadAmount > 0) {
             _shootDir.x += (Math.random() - 0.5) * spreadAmount;
             _shootDir.y += (Math.random() - 0.5) * spreadAmount;
             _shootDir.z += (Math.random() - 0.5) * spreadAmount;
@@ -224,19 +235,19 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
             let targetObj: THREE.Object3D | null = hit.object;
             while (targetObj) {
               if (targetObj.userData && targetObj.userData.takeDamage) {
-                // If it's a tactical Gloo Wall, it absorbs the bullet
+                // If it's a tactical Gloo Wall, it absorbs the bullet/punch
                 if (targetObj.userData.isGlooWall) {
                   targetObj.userData.takeDamage(baseDamage);
-                  onSpawnParticles?.([hit.point.x, hit.point.y, hit.point.z], '#38bdf8');
+                  onSpawnParticles?.([hit.point.x, hit.point.y, hit.point.z], isMelee ? '#ffffff' : '#38bdf8');
                   return;
                 }
 
-                // Check for headshot (higher impact point or sniper precision)
-                const isHeadshot = hit.point.y > 1.4 || activeWeapon.category === 'sniper';
+                // Check for headshot
+                const isHeadshot = !isMelee && (hit.point.y > 1.4 || activeWeapon.category === 'sniper');
                 const finalDamage = isHeadshot ? Math.round(baseDamage * 2.2) : baseDamage;
                 targetObj.userData.takeDamage(finalDamage);
                 onHitEnemy?.(targetObj.name || 'عدو', finalDamage, [hit.point.x, hit.point.y, hit.point.z], isHeadshot);
-                onSpawnParticles?.([hit.point.x, hit.point.y, hit.point.z], isHeadshot ? '#ef4444' : '#fbbf24');
+                onSpawnParticles?.([hit.point.x, hit.point.y, hit.point.z], isMelee ? '#ffffff' : (isHeadshot ? '#ef4444' : '#fbbf24'));
                 return;
               }
               targetObj = targetObj.parent;
@@ -247,30 +258,7 @@ export const Player = forwardRef<THREE.Group, PlayerProps>(({
       }
     }
 
-    // 4. Smart Camera Follow
-    const radX = THREE.MathUtils.degToRad(cameraRotation.x);
-    const radY = THREE.MathUtils.degToRad(cameraRotation.y);
-    
-    if (viewMode === 'TPS') {
-      _camEuler.set(radY, radX, 0, 'YXZ');
-      _camQuat.setFromEuler(_camEuler);
-      _camPos.copy(cameraOffsetTPS).applyQuaternion(_camQuat).add(meshRef.current.position);
-      state.camera.position.lerp(_camPos, cameraSmoothSpeed * delta);
-      _lookTarget.copy(meshRef.current.position).add(cameraLookAtOffsetTPS);
-      state.camera.lookAt(_lookTarget);
-    } else {
-      // FPS Mode
-      _camEuler.set(radY, radX, 0, 'YXZ');
-      _camQuat.setFromEuler(_camEuler);
-      
-      // Position camera at head level
-      _camPos.copy(cameraOffsetFPS).applyQuaternion(_camQuat).add(meshRef.current.position);
-      state.camera.position.copy(_camPos); // In FPS, no lerp for responsiveness
-      
-      // Look forward from the camera's rotation
-      _lookTarget.set(0, 0, -1).applyQuaternion(_camQuat).add(_camPos);
-      state.camera.lookAt(_lookTarget);
-    }
+    // Reporting of movement and other logic handled in blocks above
   });
 
   return (

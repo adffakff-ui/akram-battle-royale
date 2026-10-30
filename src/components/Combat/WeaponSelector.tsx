@@ -59,12 +59,18 @@ export const WeaponSelector: React.FC<WeaponSelectorProps> = ({
             </span>
           </div>
           <div className="text-sm font-black text-amber-400 font-mono tabular-nums mt-0.5 flex items-center gap-1">
-            <span>{currentAmmo}</span>
-            <span className="text-white/40 text-xs font-normal">/ {maxAmmo}</span>
-            {currentAmmo <= 5 && (
-              <span className="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded animate-pulse">
-                إعادة التلقيم!
-              </span>
+            {currentAmmo === Infinity ? (
+              <span className="text-[10px] bg-slate-800 text-white/70 px-2 py-0.5 rounded">لا نهائي ∞</span>
+            ) : (
+              <>
+                <span>{currentAmmo}</span>
+                <span className="text-white/40 text-xs font-normal">/ {maxAmmo}</span>
+                {currentAmmo <= 5 && (
+                  <span className="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded animate-pulse">
+                    إعادة التلقيم!
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -37,6 +37,8 @@ import { TabNavigation } from './components/Layout/TabNavigation';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { handleFirestoreError, OperationType } from './utils/firebaseErrors';
+import { LobbyWorld } from './components/Lobby/LobbyWorld';
+import { CameraFollow } from './components/Camera/CameraFollow';
 
 const MAX_CAPACITY = 5;
 
@@ -48,6 +50,7 @@ export default function App() {
   // Splash and Lobby Screen States
   const [showSplash, setShowSplash] = useState(true);
   const [showFighterModal, setShowFighterModal] = useState(false);
+  const [inGame, setInGame] = useState(false);
   
   // Controls & Player State
   const [joystickInput, setJoystickInput] = useState({ x: 0, y: 0 });
@@ -64,6 +67,7 @@ export default function App() {
   const [glooWalls, setGlooWalls] = useState<GlooWallData[]>([]);
   const [glooWallCount, setGlooWallCount] = useState(3);
   const [medkitCount, setMedkitCount] = useState(2);
+  const [backpackCount, setBackpackCount] = useState(6); // As seen in screenshot
   const [isScoped, setIsScoped] = useState(false);
 
   // Match State & Reset
@@ -84,7 +88,7 @@ export default function App() {
 
   // Weapon Arsenal & Tactical Upgrades State
   const [currentWeapon, setCurrentWeapon] = useState<Weapon>(WEAPONS.assault);
-  const [unlockedWeapons, setUnlockedWeapons] = useState<string[]>(['assault', 'mp40', 'sniper', 'shotgun', 'scar']);
+  const [unlockedWeapons, setUnlockedWeapons] = useState<string[]>(['fist', 'assault', 'mp40', 'sniper', 'shotgun', 'scar']);
   const [activeUpgrades, setActiveUpgrades] = useState<TacticalUpgrade[]>([]);
   const [ammo, setAmmo] = useState<number>(WEAPONS.assault.magazineSize);
   const isReloading = useRef(false);
@@ -223,6 +227,7 @@ export default function App() {
     setMedkitCount(2);
     setGlooWalls([]);
     setTargetResetKey(prev => prev + 1);
+    setInGame(true);
 
     const targetGov = YEMEN_GOVERNORATES.find(g => g.id === level.govId) || YEMEN_GOVERNORATES[0];
     const [spawnX, spawnY, spawnZ] = level.spawn || [targetGov.x, 2, targetGov.z + 4];
@@ -587,35 +592,46 @@ export default function App() {
                   style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
                   dpr={[1, 2]}
                 >
-                  <World 
-                    key={targetResetKey} 
-                    playerRef={playerRef} 
-                    onPickup={handlePickup} 
-                    onAttackPlayer={(amt) => handleTakeDamage(amt)}
-                    onZoneDamage={(amt) => handleTakeDamage(amt, true)}
-                    enemyCount={selectedLevel.enemyCount}
-                    onEnemyDie={handleEnemyDie}
-                    onClaimAirdrop={handleClaimAirdrop}
-                    glooWalls={glooWalls}
-                    onExpireGlooWall={handleExpireGlooWall}
-                    onDestroyGlooWall={handleDestroyGlooWall}
-                  />
-                  <Player 
-                    ref={playerRef}
-                    joystickInput={joystickInput} 
-                    isShooting={isShooting} 
-                    cameraRotation={cameraRotation}
-                    viewMode={viewMode}
-                    speedModifier={speedModifier * (combatBonusActive ? 1.15 : 1)}
-                    damageModifier={damageModifier * (combatBonusActive ? 1.25 : 1)}
-                    activeWeapon={currentWeapon}
-                    onConsumeAmmo={handleConsumeAmmo}
-                    onPositionChange={handlePositionChange}
-                    onHitEnemy={handleHitEnemy}
-                    onSpawnParticles={spawnParticles}
-                    jumpTrigger={jumpTrigger}
-                    isCrouching={isCrouching}
-                  />
+                  {inGame ? (
+                    <>
+                      <World 
+                        key={targetResetKey} 
+                        playerRef={playerRef} 
+                        onPickup={handlePickup} 
+                        onAttackPlayer={(amt) => handleTakeDamage(amt)}
+                        onZoneDamage={(amt) => handleTakeDamage(amt, true)}
+                        enemyCount={selectedLevel.enemyCount}
+                        onEnemyDie={handleEnemyDie}
+                        onClaimAirdrop={handleClaimAirdrop}
+                        glooWalls={glooWalls}
+                        onExpireGlooWall={handleExpireGlooWall}
+                        onDestroyGlooWall={handleDestroyGlooWall}
+                      />
+                      <Player 
+                        ref={playerRef}
+                        joystickInput={joystickInput} 
+                        isShooting={isShooting} 
+                        cameraRotation={cameraRotation}
+                        viewMode={viewMode}
+                        speedModifier={speedModifier * (combatBonusActive ? 1.15 : 1)}
+                        damageModifier={damageModifier * (combatBonusActive ? 1.25 : 1)}
+                        activeWeapon={currentWeapon}
+                        onConsumeAmmo={handleConsumeAmmo}
+                        onPositionChange={handlePositionChange}
+                        onHitEnemy={handleHitEnemy}
+                        onSpawnParticles={spawnParticles}
+                        jumpTrigger={jumpTrigger}
+                        isCrouching={isCrouching}
+                      />
+                      <CameraFollow 
+                        target={playerRef} 
+                        rotation={cameraRotation} 
+                        viewMode={viewMode} 
+                      />
+                    </>
+                  ) : (
+                    <LobbyWorld selectedFighter={selectedFighter} />
+                  )}
                   {particles.map((p) => (
                     <ImpactParticles key={p.id} position={p.pos} color={p.color} onFinish={() => removeParticles(p.id)} />
                   ))}
@@ -623,7 +639,7 @@ export default function App() {
               </div>
 
               {/* Free Fire Combat Tactical HUD */}
-              {!showFighterModal && !isVictory && !isDefeated && (
+              {inGame && !showFighterModal && !isVictory && !isDefeated && (
                 <>
                   <CameraTouchZone onRotate={handleCameraRotate} />
                   <Compass rotationX={cameraRotation.x} />
@@ -653,9 +669,11 @@ export default function App() {
                     maxAmmo={maxAmmo}
                     glooWallCount={glooWallCount}
                     medkitCount={medkitCount}
+                    backpackCount={backpackCount}
                     isScoped={isScoped}
                     onDeployGlooWall={handleDeployGlooWall}
                     onUseMedkit={handleUseMedkit}
+                    onOpenBackpack={() => addLog('🎒 الحقيبة ممتلئة بنسبة 80%', 'info')}
                     onToggleScope={handleToggleScope}
                     onReload={handleReload}
                     onSelectWeapon={handleSelectWeapon}
@@ -684,11 +702,12 @@ export default function App() {
                   {/* Authentic Free Fire Tactical Joystick (Bottom Left) */}
                   <Joystick onMove={handleJoystickMove} onSprintToggle={handleSprintToggle} />
                   
-                  {/* Free Fire Fire, Jump & Crouch Controls (Bottom Right) */}
+                   {/* Free Fire Fire, Jump & Crouch Controls (Bottom Right) */}
                   <ShootButton 
                     onShootStateChange={handleShootStateChange}
                     onJump={() => setJumpTrigger(Date.now())}
                     onCrouch={() => setIsCrouching(prev => !prev)}
+                    onProne={() => addLog('🛌 وضعية البطح مفعلة (Prone Mode)', 'info')}
                   />
 
                   {/* Free Fire Hero Ability Button (Bottom Right, above shoot button) */}
@@ -724,7 +743,11 @@ export default function App() {
               <FighterSelectModal 
                 isOpen={showFighterModal} 
                 onStartGame={handleStartGame} 
-                onClose={() => setShowFighterModal(false)} 
+                onClose={() => setShowFighterModal(false)}
+                selectedFighter={selectedFighter}
+                onFighterChange={setSelectedFighter}
+                selectedLevel={selectedLevel}
+                onLevelChange={setSelectedLevel}
               />
               
               <LeaderboardModal 
@@ -745,9 +768,13 @@ export default function App() {
                   kills={defeatedCount}
                   damageDealt={totalDamageDealt}
                   forexGain={500}
-                  onPlayAgain={handleResetTargets}
+                  onPlayAgain={() => {
+                    handleResetTargets();
+                    setInGame(true);
+                  }}
                   onReturnToLobby={() => {
                     handleResetTargets();
+                    setInGame(false);
                     setShowFighterModal(true);
                   }}
                 />
@@ -757,9 +784,13 @@ export default function App() {
               {isDefeated && !isVictory && (
                 <DefeatScreen
                   kills={defeatedCount}
-                  onPlayAgain={handleResetTargets}
+                  onPlayAgain={() => {
+                    handleResetTargets();
+                    setInGame(true);
+                  }}
                   onReturnToLobby={() => {
                     handleResetTargets();
+                    setInGame(false);
                     setShowFighterModal(true);
                   }}
                 />
